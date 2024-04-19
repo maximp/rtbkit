@@ -31,8 +31,7 @@
 namespace Mongo {
 
 struct MongoTemporaryServer : boost::noncopyable {
-    MongoTemporaryServer(const std::string & uniquePath = "",
-                         const int portNum = 1234);
+    MongoTemporaryServer(const std::string & uniquePath = "");
     ~MongoTemporaryServer();
     
     void testConnection();
@@ -40,9 +39,6 @@ struct MongoTemporaryServer : boost::noncopyable {
     void suspend();
     void resume();
     void shutdown();
-    int getPortNum() {
-        return portNum;
-    }
 
 private:
     enum State { Inactive, Stopped, Suspended, Running };
@@ -53,7 +49,6 @@ private:
     int serverPid;
     Datacratic::MessageLoop loop_;
     Datacratic::Runner runner_;
-    int portNum;
 };
 
 } // namespace Mongo

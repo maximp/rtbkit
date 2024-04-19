@@ -37,7 +37,6 @@ BOOST_AUTO_TEST_CASE( test_openrtb_error_codes )
 
     // Tell the router about the new exchange connector
     router.addExchange(connector);
-    router.initFilters();
 
     ML::sleep(1.0);
 

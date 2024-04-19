@@ -32,7 +32,6 @@ struct GoRouterAccount : public GoBaseAccount {
     Amount balance;
     Amount maxBalance;
     Amount previousBalance;
-    int bidsLastPeriod;
 
     GoRouterAccount(const AccountKey &key);
     GoRouterAccount(Json::Value &json);

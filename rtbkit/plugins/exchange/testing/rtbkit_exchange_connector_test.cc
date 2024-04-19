@@ -46,7 +46,6 @@ struct TestContext {
         connector->enableUntil(Date::positiveInfinity());
 
         router->addExchange(connector);
-        router->initFilters();
 
         ML::sleep(1.0);
 

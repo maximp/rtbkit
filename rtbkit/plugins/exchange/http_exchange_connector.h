@@ -15,7 +15,6 @@
 #include "rtbkit/common/auction.h"
 #include <limits>
 #include "rtbkit/common/exchange_connector.h"
-#include "rtbkit/common/bid_request_pipeline.h"
 #include <boost/algorithm/string.hpp>
 
 
@@ -60,8 +59,6 @@ struct HttpExchangeConnector
     */
     virtual void configure(const Json::Value & parameters);
 
-    void configurePipeline(const Json::Value& config);
-
     /** Configure just the HTTP part of the server. */
     void configureHttp(int numThreads,
                        const PortRange & listenPort,
@@ -102,39 +99,22 @@ struct HttpExchangeConnector
     {
         // This gets captured by value and effectively becomes a state variable
         // for the mutable lambda. Not very clean but it works.
-        std::vector<rusage> lastSample;
-        auto lastTime = Date::now();
+        std::vector<double> lastSample;
 
         return [=] (double elapsed) mutable -> double {
-            auto sample = getResourceUsage();
+            auto sample = totalSleepSeconds();
 
-            // get how much time elapsed since last time
-            auto now = Date::now();
-            auto dt = now.secondsSince(lastTime);
-            lastTime = now;
+            if (lastSample.size() < sample.size())
+                lastSample.resize(sample.size(), 0.0);
 
-            //first time?
-            if(sample.size() != lastSample.size()) {
-                lastSample = std::move(sample);
-                return 0.0;
+            double maxLoad = 0.0;
+            for (size_t i = 0; i < sample.size(); ++i) {
+                double load = 1.0 - ((sample[i] - lastSample[i]) / elapsed);
+                maxLoad = std::max(load, maxLoad);
             }
 
-            double sum = 0.0;
-            for (auto i = 0; i < sample.size(); i++) {
-                auto sec = double(sample[i].ru_utime.tv_sec - lastSample[i].ru_utime.tv_sec);
-                auto usec = double(sample[i].ru_utime.tv_usec - lastSample[i].ru_utime.tv_usec);
-
-                auto load = sec + usec * 0.000001;
-                if (load >= dt) {
-                    sum += 1.0;
-                } else {
-                    sum += load/dt;
-                }
-            }
-
-            double value = sum / sample.size();
             lastSample = std::move(sample);
-            return value;
+            return maxLoad;
         };
     }
 
@@ -266,14 +246,6 @@ struct HttpExchangeConnector
     /** Method invoked every second for accounting */
     virtual void periodicCallback(uint64_t numWakeups) const;
 
-    /** Invokes the pre bid-request pipeline operation */
-    PipelineStatus
-    preBidRequest(const HttpHeader& header, const std::string& payload);
-
-    /** Invokes the post bid-request pipeline operation */
-    PipelineStatus
-    postBidRequest(const std::shared_ptr<Auction>& auction);
-
 protected:
     virtual std::shared_ptr<ConnectionHandler> makeNewHandler();
     virtual std::shared_ptr<HttpAuctionHandler> makeNewHandlerShared();
@@ -300,7 +272,7 @@ protected:
     int numServingRequest;  ///< How many connections are serving a request
 
     /// Configuration parameters
-    int numThreads;
+    int numThreads;         
     int realTimePriority;
     PortRange listenPort;
     std::string bindHost;
@@ -309,8 +281,6 @@ protected:
     std::string auctionResource;
     std::string auctionVerb;
     double absoluteTimeMax;
-    bool disableAcceptProbability;
-    bool disableExceptionPrinting;
 
     /// The ping time to known hosts in milliseconds
     std::unordered_map<std::string, float> pingTimesByHostMs;
@@ -322,7 +292,6 @@ private:
     friend class HttpAuctionHandler;
 
     std::shared_ptr<HttpAuctionLogger> logger;
-    std::shared_ptr<BidRequestPipeline> pipeline;
 
     Lock handlersLock;
     std::set<std::shared_ptr<HttpAuctionHandler> > handlers;

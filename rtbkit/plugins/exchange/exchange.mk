@@ -2,8 +2,7 @@
 
 LIBRTB_EXCHANGE_SOURCES := \
 	http_exchange_connector.cc \
-	http_auction_handler.cc \
-	creative_configuration.cc
+	http_auction_handler.cc
 
 LIBRTB_EXCHANGE_LINK := \
 	zeromq boost_thread utils endpoint services rtb bid_request
@@ -22,6 +21,5 @@ $(eval $(call library,fbx_exchange,fbx_exchange_connector.cc,exchange bid_test_u
 $(eval $(call library,adx_exchange,realtime-bidding.proto adx_exchange_connector.cc,exchange protobuf))
 $(eval $(call library,rtbkit_exchange,rtbkit_exchange_connector.cc,openrtb_exchange))
 $(eval $(call library,casale_exchange,casale_exchange_connector.cc,openrtb_exchange))
-$(eval $(call library,spotx_exchange,spotx_exchange_connector.cc,openrtb_exchange))
 
 $(eval $(call include_sub_make,exchange_testing,testing,exchange_testing.mk))

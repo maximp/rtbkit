@@ -45,6 +45,11 @@ Logging::Category HttpBidderInterface::trace("HttpBidderInterface Trace", HttpBi
 
 }
 
+auto HttpBidderInterface::readFormat(const std::string& fmt) -> Format {
+    if (fmt == "standard") return FMT_STANDARD;
+    if (fmt == "datacratic") return FMT_DATACRATIC;
+    ExcCheck(false, "unknown format string: " + fmt);
+}
 
 HttpBidderInterface::HttpBidderInterface(std::string serviceName,
                                          std::shared_ptr<ServiceProxies> proxies,
@@ -60,18 +65,22 @@ HttpBidderInterface::HttpBidderInterface(std::string serviceName,
 
         routerHost = router["host"].asString();
         routerPath = router["path"].asString();
+        routerFormat = readFormat(router.get("format", "standard").asString());
         routerHttpActiveConnections = router.get("httpActiveConnections", 1024).asInt();
 
         adserverHost = adserver["host"].asString();
 
         adserverWinPort = adserver["winPort"].asInt();
         adserverWinPath = adserver.get("winPath", "/").asString();
+        adserverWinFormat = readFormat(adserver.get("winFormat", "standard").asString());
 
         adserverEventPort = adserver["eventPort"].asInt();
         adserverEventPath = adserver.get("eventPath", "/").asString();
+        adserverEventFormat = readFormat(adserver.get("eventFormat", "standard").asString());
 
         adserverErrorPort = adserver["errorPort"].asInt();
         adserverErrorPath = adserver.get("errorPath", "/").asString();
+        adserverErrorFormat = readFormat(adserver.get("errorFormat", "standard").asString());
 
         adserverHttpActiveConnections = adserver.get("httpActiveConnections", 1024).asInt();
     } catch (const std::exception & e) {
@@ -101,8 +110,7 @@ HttpBidderInterface::HttpBidderInterface(std::string serviceName,
                    << "\t}" << std::endl << "}";
     }
 
-    // Force http_client_v2 to avoid latency added by curl in v1
-    httpClientRouter.reset(new HttpClient(routerHost, routerHttpActiveConnections, 0, 2));
+    httpClientRouter.reset(new HttpClient(routerHost, routerHttpActiveConnections));
     /* We do not want curl to add an extra "Expect: 100-continue" HTTP header
      * and then pay the cost of an extra HTTP roundtrip. Thus we remove this
      * header
@@ -150,18 +158,39 @@ void HttpBidderInterface::sendAuctionMessage(std::shared_ptr<Auction> const & au
                                              std::map<std::string, BidInfo> const & bidders) {
     using namespace std;
 
+    auto findAgent = [=](uint64_t externalId)
+        -> pair<string, shared_ptr<const AgentConfig>> {
+
+        auto it =
+        find_if(begin(bidders), end(bidders),
+                [&](const pair<string, BidInfo> &bidder)
+        {
+            std::string agent = bidder.first;
+            const auto &info = router->agents[agent];
+            return info.config->externalId == externalId;
+        });
+
+        if (it == end(bidders)) {
+            return make_pair("", nullptr);
+        }
+
+        return make_pair(it->first, it->second.agentConfig);
+
+    };
+
     BidRequest & originalRequest = *auction->request;
-    std::vector<Datacratic::Id> ids;
-    ids.reserve(originalRequest.imp.size());
-    for(auto & imp : originalRequest.imp) {
-        ids.push_back(imp.id);
-   }
+    std::shared_ptr<OpenRTBBidRequestParser> parser = OpenRTBBidRequestParser::openRTBBidRequestParserFactory("2.1");
 
-    std::string openRtbVersion;
-    string requestStr;
+    OpenRTB::BidRequest openRtbRequest = parser->toBidRequest(originalRequest);
+    bool ok = prepareRequest(openRtbRequest, originalRequest, auction, bidders);
+    /* If we took too much time processing the request, then we don't send it.  */
+    if (!ok) {
+        return;
+    }
     StructuredJsonPrintingContext context;
+    desc.printJson(&openRtbRequest, context);
+    auto requestStr = context.output.toString();
 
-    parseFormat(originalRequest, auction, bidders, requestStr, context, openRtbVersion);
 
     Date sentResponseTime = Date::now();
     /* We need to capture by copy inside the lambda otherwise we might get
@@ -174,7 +203,7 @@ void HttpBidderInterface::sendAuctionMessage(std::shared_ptr<Auction> const & au
                 Date responseReceivedTime = Date::now();
                 const double responseTime = responseReceivedTime.secondsSince(sentResponseTime);
                 recordOutcome(1000.0 * responseTime, "httpResponseTimeMs");
-               // cerr << "Response: " << "HTTP " << statusCode << std::endl << body << endl;
+                 //cerr << "Response: " << "HTTP " << statusCode << std::endl << body << endl;
 
                  /* We need to make sure that we re-inject bids into the router for each
                   * agent. When receiving a BidResponse, if the SeatBid array contains
@@ -229,7 +258,51 @@ void HttpBidderInterface::sendAuctionMessage(std::shared_ptr<Auction> const & au
                              string agent;
                              shared_ptr<const AgentConfig> config;
 
-                             routerFormat(bid, theBid, agent, config, body, bidders);
+                             if (routerFormat == FMT_STANDARD) {
+                                 if (!bid.ext.isMember("external-id")) {
+                                     LOG(error) << "Missing external-id ext field in BidResponse: " << body << std::endl;
+                                     recordError("response");
+                                     return;
+                                 }
+                                 uint64_t externalId = bid.ext["external-id"].asUInt();
+
+                                 if (!bid.ext.isMember("priority")) {
+                                     LOG(error) << "Missing priority ext field in BidResponse: " << body << std::endl;
+                                     recordError("response");
+                                     return;
+                                 }
+                                 theBid.priority = bid.ext["priority"].asDouble();
+
+
+                                 tie(agent, config) = findAgent(externalId);
+                                 if (config == nullptr) {
+                                     LOG(error) << "Couldn't find config for externalId: " << externalId << std::endl;
+                                     recordError("unknown");
+                                     return;
+                                 }
+                             }
+
+                             else if (routerFormat == FMT_DATACRATIC) {
+
+                                 for (const auto& entry : bidders) {
+                                     config = entry.second.agentConfig;
+                                     if (config->account[1] == bid.cid.toString()) {
+                                         agent = entry.first;
+                                         break;
+                                     }
+                                 }
+
+                                 if (agent.empty()) {
+                                     LOG(error) << "Couldn't find config for cid: " << bid.cid << std::endl;
+                                     recordError("unknown");
+                                     return;
+                                 }
+
+                                 theBid.ext = bid.ext["rtbkit"]["meta"];
+                                 theBid.priority = bid.ext["rtbkit"]["priority"].asDouble();
+                             }
+
+                             else ExcAssert(false);
 
                              ExcCheck(!agent.empty(), "Invalid agent");
 
@@ -239,17 +312,9 @@ void HttpBidderInterface::sendAuctionMessage(std::shared_ptr<Auction> const & au
                                  return;
                              }
 
-                             Id crid = bid.crid;
-                             int creativeId = 0;
-
-                             if (crid.type == Id::STR) {
-                                 creativeId = std::stoi(crid.toString());
-                             } else {
-                                 creativeId = crid.toInt();
-                             }
-
+                             int crid = bid.crid.toInt();
                              int creativeIndex = indexOf(config->creatives,
-                                 &Creative::id, creativeId);
+                                 &Creative::id, crid);
 
                              if (creativeIndex == -1) {
                                  LOG(error) << "Unknown creative id: " << crid << std::endl;
@@ -260,21 +325,15 @@ void HttpBidderInterface::sendAuctionMessage(std::shared_ptr<Auction> const & au
                              theBid.creativeIndex = creativeIndex;
                              theBid.price = USD_CPM(bid.price.val);
 
-                             int spotIndex = -1;
-                             for(size_t i = 0; i < ids.size(); i++) {
-                                if(bid.impid == ids[i]) {
-                                    spotIndex = i;
-                                    break;
-                                }
-                             }
-
+                             int spotIndex = indexOf(openRtbRequest.imp,
+                                                    &OpenRTB::Impression::id, bid.impid);
                              if (spotIndex == -1) {
                                  LOG(error) <<"Unknown impression id: " << bid.impid.toString() << std::endl;
                                  recordError("unknown");
                                  return;
                              }
+
                              auto &bidInfo = bidsToSubmit[agent];
-                             theBid.spotIndex = spotIndex;
                              bidInfo.bids.bidForSpot(spotIndex) = theBid;
                          }
                      }
@@ -292,7 +351,7 @@ void HttpBidderInterface::sendAuctionMessage(std::shared_ptr<Auction> const & au
 
     HttpRequest::Content reqContent { requestStr, "application/json" };
 
-    RestParams headers { { "x-openrtb-version", openRtbVersion } };
+    RestParams headers { { "x-openrtb-version", "2.1" } };
    // std::cerr << "Sending HTTP POST to: " << routerHost << " " << routerPath << std::endl;
    // std::cerr << "Content " << reqContent.str << std::endl;
 
@@ -300,116 +359,16 @@ void HttpBidderInterface::sendAuctionMessage(std::shared_ptr<Auction> const & au
                      { } /* queryParams */, headers);
 }
 
-void HttpBidderInterface::parseFormat (BidRequest & originalRequest,
-       std::shared_ptr<Auction> const & auction,
-       std::map<std::string, BidInfo> const & bidders, std::string & requestStr,
-       StructuredJsonPrintingContext & context, std::string & openRtbVersion)
-{
-    if (!originalRequest.protocolVersion.empty())
-        openRtbVersion = originalRequest.protocolVersion;
-    else
-        openRtbVersion = "2.1";
-
-    std::shared_ptr<OpenRTBBidRequestParser> parser = OpenRTBBidRequestParser::openRTBBidRequestParserFactory(openRtbVersion);
-
-    OpenRTB::BidRequest openRtbRequest;
-    openRtbRequest = parser->toBidRequest(originalRequest);
-    if(!prepareStandardRequest(openRtbRequest, originalRequest, auction, bidders)) {
-        return;
-    }
-    desc.printJson(&openRtbRequest, context);
-    requestStr = context.output.toString();
-}
-
-void HttpBidderInterface::routerFormat(OpenRTB::Bid const & bid, Bid & theBid,
-                             std::string & agent,
-                             shared_ptr<const AgentConfig> & config, std::string & body,
-                             std::map<std::string, BidInfo> const & bidders)
-{
-    auto findAgent = [=](uint64_t externalId)
-        -> pair<string, shared_ptr<const AgentConfig>> {
-
-        auto it =
-        find_if(begin(bidders), end(bidders),
-                [&](const pair<string, BidInfo> &bidder)
-        {
-            std::string agent = bidder.first;
-            /* Since it is possible to delete a configuration from the REST interface of
-             * the agent configuration service, the user might delete the configuration
-             * while some requests for this configuration are already in flight. When
-             * that happens, since we're capturing our context by copy in the closure,
-             * we hold a "private" copy of the current agents and & their configurations,
-             * which means that we might still hold configurations that have been deleted
-             * and erased in the router.
-             *
-             * This is why we are checking if the agent still exists. If not, we're skipping
-             * it. This is not ideal and introduces an extra check but this is the simplest way
-             * Note that this will be trigger the "couldn't fint configuration for
-             * externalId" error below. In other words, all requests that are "in flight"
-             * for a configuration that has been deleted will trigger a logging message.
-             * We will return a 204 for these requests
-             */
-            auto entry = router->getAgentEntry(agent);
-            if (!entry.valid()) return false;
-            return entry.config->externalId == externalId;
-        });
-
-        if (it == end(bidders)) {
-            return make_pair("", nullptr);
-        }
-        return make_pair(it->first, it->second.agentConfig);
-    };
-
-
-    if (!bid.ext.isMember("external-id")) {
-        LOG(error) << "Missing external-id ext field in BidResponse: " << body << std::endl;
-        recordError("response");
-        return;
-    }
-    uint64_t externalId = bid.ext["external-id"].asUInt();
-
-    if (!bid.ext.isMember("priority")) {
-        LOG(error) << "Missing priority ext field in BidResponse: " << body << std::endl;
-        recordError("response");
-        return;
-    }
-    theBid.priority = bid.ext["priority"].asDouble();
-
-
-    tie(agent, config) = findAgent(externalId);
-    if (config == nullptr) {
-        LOG(error) << "Couldn't find config for externalId: " << externalId << std::endl;
-        recordError("unknown");
-        return;
-    }
-
-}
-
 void HttpBidderInterface::sendLossMessage(
         const std::shared_ptr<const AgentConfig>& agentConfig,
         std::string const & agent, std::string const & id) {
 
-    auto callbacks = std::make_shared<HttpClientSimpleCallbacks>(
-        [=](const HttpRequest &, HttpClientError errorCode,
-            int statusCode, const std::string &, std::string &&body)
-        {
-            if (errorCode != HttpClientError::None) {
-                 LOG(error) << "Error requesting "
-                            << adserverHost << ":" << adserverEventPort
-                            << " (" << httpErrorString(errorCode) << ")" << std::endl;
-                 recordError("network");
-              }
-        });
-
-    Json::Value content;
-
-    HttpRequest::Content reqContent { content, "application/json" };
-    httpClientAdserverEvents->post(adserverEventPath, callbacks, reqContent, {} /* queryParams */);
 }
 
 void HttpBidderInterface::sendWinLossMessage(
         const std::shared_ptr<const AgentConfig>& agentConfig,
         MatchedWinLoss const & event) {
+    if (event.type == MatchedWinLoss::Loss) return;
 
     auto callbacks = std::make_shared<HttpClientSimpleCallbacks>(
         [=](const HttpRequest &, HttpClientError errorCode,
@@ -425,10 +384,7 @@ void HttpBidderInterface::sendWinLossMessage(
 
     Json::Value content;
 
-        if(event.type == MatchedWinLoss::Loss) {
-            return;
-        }
-
+    if (adserverWinFormat == FMT_STANDARD) {
         content["timestamp"] = event.timestamp.secondsSinceEpoch();
         content["bidRequestId"] = event.auctionId.toString();
         content["impid"] = event.impId.toString();
@@ -437,10 +393,38 @@ void HttpBidderInterface::sendWinLossMessage(
         content["price"] = (double) getAmountIn<CPM>(event.winPrice);
 
         //requestStr["passback"];
+    }
+    else if (adserverWinFormat == FMT_DATACRATIC) {
+        content["id"] = event.auctionId.toString();
 
+        auto& ext = content["ext"]["datacratic"];
+        ext["request"] = event.requestStr;
+        ext["requestFormat"] = event.requestStrFormat;
+
+        Json::Value entry;
+        {
+            entry["impid"] = event.impId.toString();
+            entry["type"] = event.type == MatchedWinLoss::Loss ? "loss" : "win";
+            entry["price"] = (double) getAmountIn<CPM>(event.winPrice);
+            entry["cid"] = event.response.account[1];
+            entry["ext"]["datacratic"]["meta"] = Json::parse(event.response.meta.rawString());
+
+            Json::Value users;
+            for (const auto& item : event.uids) {
+                Json::Value user;
+                user["id"] = item.second.toString();
+                users.append(user);
+            }
+            entry["users"] = users;
+        }
+        content["events"].append(entry);
+    }
+    else ExcAssert(false);
+    
     HttpRequest::Content reqContent { content, "application/json" };
     httpClientAdserverWins->post(adserverWinPath, callbacks, reqContent,
                          { } /* queryParams */);
+    
 }
 
 
@@ -467,10 +451,29 @@ void HttpBidderInterface::sendCampaignEventMessage(
     
     Json::Value content;
 
+    if (adserverEventFormat == FMT_STANDARD) {
         content["timestamp"] = event.timestamp.secondsSinceEpoch();
         content["bidRequestId"] = event.auctionId.toString();
         content["impid"] = event.impId.toString();
         content["type"] = event.label;
+    }
+    else if (adserverEventFormat == FMT_DATACRATIC) {
+        content["id"] = event.auctionId.toString();
+
+        auto& ext = content["ext"]["datacratic"];
+        ext["request"] = event.requestStr;
+        ext["requestFormat"] = event.requestStrFormat;
+
+        Json::Value entry;
+        {
+            entry["impid"] = event.impId.toString();
+            entry["type"] = event.label;
+            entry["cid"] = event.response.account[1];
+            entry["ext"]["datacratic"]["meta"] = Json::parse(event.bid["meta"].asString());
+        }
+        content["events"].append(entry);
+    }
+    else ExcAssert(false);
 
     HttpRequest::Content reqContent { content, "application/json" };
     httpClientAdserverEvents->post(adserverEventPath, callbacks, reqContent,
@@ -497,7 +500,7 @@ void HttpBidderInterface::sendBidErrorMessage(
 
     Json::Value content;
     content["id"] = auction->id.toString();
-    content["cid"] = agent;
+    content["crid"] = agentConfig->account[1];
     content["type"] = type;
     if (!reason.empty()) content["reason"] = reason;
 
@@ -509,6 +512,8 @@ void HttpBidderInterface::sendBidDroppedMessage(
         const std::shared_ptr<const AgentConfig>& agentConfig,
         std::string const & agent, std::shared_ptr<Auction> const & auction)
 {
+    if (adserverEventFormat == FMT_DATACRATIC)
+        sendBidErrorMessage(agentConfig, agent, auction, "DROPPED");
 }
 
 void HttpBidderInterface::sendBidInvalidMessage(
@@ -516,18 +521,24 @@ void HttpBidderInterface::sendBidInvalidMessage(
         std::string const & agent, std::string const & reason,
         std::shared_ptr<Auction> const & auction)
 {
+    if (adserverEventFormat == FMT_DATACRATIC)
+        sendBidErrorMessage(agentConfig, agent, auction, "INVALID");
 }
 
 void HttpBidderInterface::sendNoBudgetMessage(
         const std::shared_ptr<const AgentConfig>& agentConfig,
         std::string const & agent, std::shared_ptr<Auction> const & auction)
 {
+    if (adserverEventFormat == FMT_DATACRATIC)
+        sendBidErrorMessage(agentConfig, agent, auction, "NOBUDGET");
 }
 
 void HttpBidderInterface::sendTooLateMessage(
         const std::shared_ptr<const AgentConfig>& agentConfig,
         std::string const & agent, std::shared_ptr<Auction> const & auction)
 {
+    if (adserverEventFormat == FMT_DATACRATIC)
+        sendBidErrorMessage(agentConfig, agent, auction, "TOOLATE");
 }
 
 void HttpBidderInterface::sendMessage(
@@ -558,21 +569,26 @@ void HttpBidderInterface::sendPingMessage(
 }
 
 void HttpBidderInterface::registerLoopMonitor(LoopMonitor *monitor) const {
-    monitor->addMessageLoop(serviceName(), &loop);
+    monitor->addMessageLoop("httpBidderInterfaceLoop", &loop);
+}
+
+bool HttpBidderInterface::prepareRequest(OpenRTB::BidRequest &request,
+                                         const RTBKIT::BidRequest &originalRequest,
+                                         const std::shared_ptr<Auction> &auction,
+                                         const std::map<std::string, BidInfo> &bidders) const
+{
+    if (routerFormat == FMT_STANDARD)
+        return prepareStandardRequest(request, originalRequest, auction, bidders);
+
+    if (routerFormat == FMT_DATACRATIC)
+        return prepareDatacraticRequest(request, originalRequest, auction, bidders);
+
+    ExcAssert(false);
 }
 
 void HttpBidderInterface::tagRequest(OpenRTB::BidRequest &request,
                                      const std::map<std::string, BidInfo> &bidders) const
 {
-    static const Json::Value null(Json::nullValue);
-
-    static constexpr const char *ExternalIdsFieldName = "external-ids";
-    static constexpr const char *CreativeIdsFieldName = "creative-ids";
-
-    // Make sure to tag every impression, even impressions that do not satisfy
-    // filters
-    for (auto& imp: request.imp)
-        imp.ext[ExternalIdsFieldName] = imp.ext[CreativeIdsFieldName] = null;
 
     for (const auto &bidder: bidders) {
         const auto &agentConfig = bidder.second.agentConfig;
@@ -584,20 +600,16 @@ void HttpBidderInterface::tagRequest(OpenRTB::BidRequest &request,
             ExcCheck(adSpotIndex >= 0 && adSpotIndex < request.imp.size(),
                      "adSpotIndex out of range");
             auto &imp = request.imp[adSpotIndex];
-            auto &externalIds = imp.ext[ExternalIdsFieldName];
+            auto &externalIds = imp.ext["external-ids"];
             externalIds.append(agentConfig->externalId);
 
-            auto& creativesExtField = imp.ext[CreativeIdsFieldName];
+            auto& creativesExtField = imp.ext["creative-indexes"];
 
 
             auto &creativesList = creativesExtField[std::to_string(agentConfig->externalId)];
-            const auto& creatives = agentConfig->creatives;
             for (int index: creativeIndexes) {
-                ExcAssert(index < creatives.size());
-
-                creativesList.append(creatives[index].id);
+                creativesList.append(index);
             }
-
         }
 
     }
@@ -609,8 +621,6 @@ bool HttpBidderInterface::prepareStandardRequest(OpenRTB::BidRequest &request,
                                          const std::shared_ptr<Auction> &auction,
                                          const std::map<std::string, BidInfo> &bidders) const {
     tagRequest(request, bidders);
-
-     request.ext["exchange"] = originalRequest.exchange;
 
     // Take any augmentation data and fill in the ext field of the bid request with the data,
     // under the rtbkit "namespace"
@@ -626,6 +636,57 @@ bool HttpBidderInterface::prepareStandardRequest(OpenRTB::BidRequest &request,
 
 
     // We update the tmax value before sending the BidRequest to substract our processing time
+    Date auctionExpiry = auction->expiry;
+    double remainingTimeMs = auctionExpiry.secondsSince(Date::now()) * 1000;
+    if (remainingTimeMs < 0) {
+        return false;
+    }
+
+    request.tmax.val = remainingTimeMs;
+    return true;
+}
+
+bool HttpBidderInterface::prepareDatacraticRequest(OpenRTB::BidRequest &request,
+                                                   const RTBKIT::BidRequest &originalRequest,
+                                                   const std::shared_ptr<Auction> &auction,
+                                                   const std::map<std::string, BidInfo> &bidders) const
+{
+    // uses strategy slug as the bidder id.
+    auto bidderId = [] (const AccountKey& account) { return account[1]; };
+
+    for (const auto& bidder : bidders) {
+        const AgentConfig& config = *bidder.second.agentConfig;
+        std::string id = bidderId(config.account);
+
+        for (const auto& imp : bidder.second.imp) {
+            auto& ext = request.imp[imp.first].ext;
+
+            auto& creatives = ext["datacratic"]["allowed"][id];
+            for (size_t creativeIndex : imp.second) {
+                int creativeId = config.creatives[creativeIndex].id;
+                creatives.append(creativeId);
+            }
+        }
+    }
+
+    auto& dataExt = request.ext["rtbkit"]["data"];
+    for (const auto& augmentation : auction->augmentations) {
+        auto& augExt = dataExt[augmentation.first];
+
+        for (const auto& bidder : bidders) {
+            const AccountKey& account = bidder.second.agentConfig->account;
+
+            Augmentation aug = augmentation.second.filterForAccount(account);
+            if (!!aug.data) augExt[bidderId(account)] = aug.data;
+        }
+    }
+
+    auto& ext = request.ext["datacratic"];
+    ext["request"] = auction->requestStr;
+    ext["requestFormat"] = auction->requestStrFormat;
+
+    // We update the tmax value before sending the BidRequest to substract our
+    // processing time
     Date auctionExpiry = auction->expiry;
     double remainingTimeMs = auctionExpiry.secondsSince(Date::now()) * 1000;
     if (remainingTimeMs < 0) {

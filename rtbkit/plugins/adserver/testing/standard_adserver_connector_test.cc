@@ -44,26 +44,6 @@ std::string loadFile(const std::string & filename)
     return result;
 }
 
-std::vector<string> loadMultilineFile(const std::string & filename)
-{
-    ML::filter_istream stream(filename);
-
-    std::vector<string> result;
-
-    while (stream) {
-        std::string line;
-        getline(stream, line);
-        if(line == "") {
-            break;
-        }
-        result.push_back(line);
-    }
-
-    return result;
-}
-
-
-
 struct TestStandardAdServer {
 
     TestStandardAdServer() : addressWin(18143),
@@ -159,30 +139,27 @@ BOOST_AUTO_TEST_CASE( test_standard_adserver_click )
 BOOST_AUTO_TEST_CASE( test_standard_adserver_conversion )
 {
     // load click json
-    std::vector<string> strJson = loadMultilineFile(conversion_sample_filename);
+    std::string strJson = loadFile(conversion_sample_filename);
+    std::cerr << strJson << std::endl;
 
-    for(auto const& item : strJson) {
-        std::cerr << item << std::endl;
+    std::string httpRequest = ML::format(
+                                  "POST / HTTP/1.1\r\n"
+                                  "Content-Length: %zd\r\n"
+                                  "Content-Type: application/json\r\n"
+                                  "\r\n"
+                                  "%s",
+                                  strJson.size(),
+                                  strJson.c_str());
 
-        std::string httpRequest = ML::format(
-                                      "POST / HTTP/1.1\r\n"
-                                      "Content-Length: %zd\r\n"
-                                      "Content-Type: application/json\r\n"
-                                      "\r\n"
-                                      "%s",
-                                      item.size(),
-                                      item.c_str());
+    // and send it
+    eventSource->write(httpRequest);
+    std::string result = eventSource->read();
 
-        cout << httpRequest << endl;
+    BOOST_CHECK_EQUAL(result.compare(0, statusOK.length(), statusOK), 0);
 
-        // and send it
-        eventSource->write(httpRequest);
-        std::string result = eventSource->read();
-        std::cerr << result << std::endl;
+    std::cerr << result << std::endl;
 
-        BOOST_CHECK_EQUAL(result.compare(0, statusOK.length(), statusOK), 0);
-        proxies->events->dump(std::cerr);
-    }
+    proxies->events->dump(std::cerr);
 
 }
 

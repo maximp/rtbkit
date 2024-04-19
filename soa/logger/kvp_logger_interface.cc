@@ -7,7 +7,7 @@ namespace Datacratic{
 std::shared_ptr<IKvpLogger>
 IKvpLogger
 ::kvpLoggerFactory(const std::string& type, const KvpLoggerParams& params){
-    if (type == "void"){
+    if(type == "void"){
         return std::shared_ptr<IKvpLogger>(new KvpLoggerVoid());
     }else if(type == "metricsLogger"){
     

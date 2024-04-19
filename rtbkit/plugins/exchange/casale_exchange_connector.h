@@ -8,7 +8,7 @@
 #pragma once
 
 #include "rtbkit/plugins/exchange/openrtb_exchange_connector.h"
-#include "rtbkit/plugins/exchange/creative_configuration.h"
+#include "rtbkit/common/creative_configuration.h"
 
 namespace RTBKIT {
 
@@ -58,16 +58,16 @@ struct CasaleExchangeConnector : public OpenRTBExchangeConnector {
         std::vector<std::string> adomain;
     };
 
-private:
-    void init();
+    typedef CreativeConfiguration<CreativeInfo> CasaleCreativeConfiguration;
 
-    typedef TypedCreativeConfiguration<CreativeInfo> CasaleCreativeConfiguration;
-    CasaleCreativeConfiguration configuration_;
-    
+private:
+    void initCreativeConfiguration();
+
     void setSeatBid(const Auction& auction,
                     int spotNum,
                     OpenRTB::BidResponse& response) const;
 
+    CasaleCreativeConfiguration creativeConfig;
 };
 
 } // namespace RTBKIT

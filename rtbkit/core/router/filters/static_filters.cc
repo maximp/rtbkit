@@ -1,7 +1,9 @@
 /** basic_filters.cc                                 -*- C++ -*-
     Rémi Attab, 24 Jul 2013
     Copyright (c) 2013 Datacratic.  All rights reserved.
+
     Default pool of filters for an BidRequest object.
+
 */
 
 #include "static_filters.h"
@@ -55,6 +57,7 @@ applyExchangeFilter(FilterState& state, const ConfigSet& result) const
        support skipping filters which is required for the exchange IE. So
        instead we'll take the result of the original filter and massage it until
        we get the mask we want.
+
        First off, let's figure out which configs would change from 1 to 0 if we
        applied result to the state.
     */
@@ -70,6 +73,7 @@ applyExchangeFilter(FilterState& state, const ConfigSet& result) const
     /* At this point we have a 1 in our leftover bitfield for each configs
        that would be filtered out and is not marked for skipping. We can
        therefor remove those configs from state by negating the bitfield.
+
        Magic!
     */
     return leftover.negate();
@@ -139,9 +143,7 @@ setConfig(unsigned cfgIndex, const AgentConfig& config, bool value)
         return;
     }
 
-    auto uid = config.externalId;
-    auto& entry = data[getKey(part, uid)];
-    entry.uid = uid;
+    auto& entry = data[getKey(part)];
     if (entry.hashOn == UserPartition::NONE) {
         entry.modulus = part.modulus;
         entry.hashOn = part.hashOn;
@@ -217,8 +219,7 @@ getValue(const BidRequest& br, const FilterEntry& entry) const
 
     if (str.empty() || str == "null") return make_pair(false, 0);
 
-    auto h = calcHash(str) + entry.uid;
-    return make_pair(true, h % entry.modulus);
+    return make_pair(true, calcHash(str) % entry.modulus);
 }
 
 
@@ -307,30 +308,36 @@ LatLongDevFilter::pointInsideAnySquare(float lat, float lon,
 
 } // namespace RTBKIT
 
+
 /******************************************************************************/
 /* INIT FILTERS                                                               */
 /******************************************************************************/
 
 namespace {
 
-struct AtInit {
-    AtInit()
+struct InitFilters
+{
+    InitFilters()
     {
-        RTBKIT::FilterBase::registerFactory<RTBKIT::SegmentsFilter>();
-        RTBKIT::FilterBase::registerFactory<RTBKIT::UserPartitionFilter>();
-        RTBKIT::FilterBase::registerFactory<RTBKIT::HourOfWeekFilter>();
-        RTBKIT::FilterBase::registerFactory<RTBKIT::UrlFilter>();
-        RTBKIT::FilterBase::registerFactory<RTBKIT::HostFilter>();
-        RTBKIT::FilterBase::registerFactory<RTBKIT::LanguageFilter>();
-        RTBKIT::FilterBase::registerFactory<RTBKIT::LocationFilter>();
-        RTBKIT::FilterBase::registerFactory<RTBKIT::ExchangePreFilter>();
-        RTBKIT::FilterBase::registerFactory<RTBKIT::ExchangePostFilter>();
-        RTBKIT::FilterBase::registerFactory<RTBKIT::ExchangeNameFilter>();
-        RTBKIT::FilterBase::registerFactory<RTBKIT::FoldPositionFilter>();
-        RTBKIT::FilterBase::registerFactory<RTBKIT::RequiredIdsFilter>();
-        RTBKIT::FilterBase::registerFactory<RTBKIT::LatLongDevFilter>();
+        RTBKIT::FilterRegistry::registerFilter<RTBKIT::SegmentsFilter>();
+        RTBKIT::FilterRegistry::registerFilter<RTBKIT::FoldPositionFilter>();
+        RTBKIT::FilterRegistry::registerFilter<RTBKIT::HourOfWeekFilter>();
+        RTBKIT::FilterRegistry::registerFilter<RTBKIT::RequiredIdsFilter>();
+        RTBKIT::FilterRegistry::registerFilter<RTBKIT::UserPartitionFilter>();
+
+        RTBKIT::FilterRegistry::registerFilter<RTBKIT::UrlFilter>();
+        RTBKIT::FilterRegistry::registerFilter<RTBKIT::HostFilter>();
+        RTBKIT::FilterRegistry::registerFilter<RTBKIT::LanguageFilter>();
+        RTBKIT::FilterRegistry::registerFilter<RTBKIT::LocationFilter>();
+
+        RTBKIT::FilterRegistry::registerFilter<RTBKIT::ExchangePreFilter>();
+        RTBKIT::FilterRegistry::registerFilter<RTBKIT::ExchangeNameFilter>();
+        RTBKIT::FilterRegistry::registerFilter<RTBKIT::ExchangePostFilter>();
+
+        RTBKIT::FilterRegistry::registerFilter<RTBKIT::LatLongDevFilter>();
     }
 
-} AtInit;
+} initFilters;
+
 
 } // namespace anonymous

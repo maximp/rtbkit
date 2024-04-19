@@ -7,7 +7,6 @@
 #pragma once
 #include <unordered_set>
 #include <boost/any.hpp>
-#include "rtbkit/plugins/exchange/creative_configuration.h"
 #include "rtbkit/plugins/exchange/http_exchange_connector.h"
 
 namespace RTBKIT {
@@ -84,12 +83,6 @@ struct AppNexusExchangeConnector : public HttpExchangeConnector {
     getCreativeCompatibility(const Creative & creative,
                              bool includeReasons) const;
 
-private:
-
-    void init();
-
-    typedef TypedCreativeConfiguration<CreativeInfo> AppNexusCreativeConfiguration;
-    AppNexusCreativeConfiguration configuration_;
 };
 
 

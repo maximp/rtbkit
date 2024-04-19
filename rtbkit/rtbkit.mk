@@ -9,4 +9,3 @@ $(eval $(call include_sub_make,plugins))
 $(eval $(call include_sub_make,js))
 $(eval $(call include_sub_make,testing))
 $(eval $(call include_sub_make,examples))
-

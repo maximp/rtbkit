@@ -21,11 +21,12 @@
 /******************************************************************************/
 
 namespace Datacratic {
-    struct ZmqNamedClientBus;
-}
-namespace RTBKIT {
-    struct Analytics;
-}
+
+struct ZmqNamedPublisher;
+struct ZmqNamedClientBus;
+
+} // namespace Datacratic
+
 
 /******************************************************************************/
 /* MATCHED WIN LOSS                                                           */
@@ -75,7 +76,7 @@ struct MatchedWinLoss
     std::string typeString() const;
     std::string confidenceString() const;
 
-    void publish(Analytics& logger) const;
+    void publish(ZmqNamedPublisher& logger) const;
     void publish(AnalyticsPublisher & logger) const;
 
 private:
@@ -115,7 +116,7 @@ struct MatchedCampaignEvent
 
     MatchedCampaignEvent(std::string label, const FinishedInfo& info);
 
-    void publish(Analytics& logger) const;
+    void publish(ZmqNamedPublisher& logger) const;
     void publish(AnalyticsPublisher & logger) const;
 };
 
@@ -132,7 +133,7 @@ struct UnmatchedEvent
     UnmatchedEvent(std::string reason, PostAuctionEvent event);
 
     std::string channel() const;
-    void publish(Analytics& logger) const;
+    void publish(ZmqNamedPublisher& logger) const;
     void publish(AnalyticsPublisher & logger) const;
 };
 
@@ -148,7 +149,7 @@ struct PostAuctionErrorEvent
     std::string rest;
 
     PostAuctionErrorEvent(std::string key, std::string message);
-    void publish(Analytics& logger) const;
+    void publish(ZmqNamedPublisher& logger) const;
     void publish(AnalyticsPublisher & logger) const;
 };
 

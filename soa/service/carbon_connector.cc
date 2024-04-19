@@ -124,7 +124,7 @@ StatAggregator * createNewOutcome(const std::vector<int>& percentiles)
 void
 MultiAggregator::
 record(const std::string & stat,
-       StatEventType type,
+       EventType type,
        float value,
        std::initializer_list<int> extra)
 {

@@ -47,17 +47,17 @@ struct AugmentorInfo {
     AugmentorInfo(const std::string& name = "") : name(name) {}
 
     std::string name;                   ///< What the augmentation is called
-    std::vector<std::shared_ptr<AugmentorInstanceInfo>> instances;
+    std::vector<AugmentorInstanceInfo> instances;
 
-    std::shared_ptr<AugmentorInstanceInfo> findInstance(const std::string& addr)
+    AugmentorInstanceInfo* findInstance(const std::string& addr)
     {
         for (auto it = instances.begin(), end = instances.end();
              it != end; ++it)
         {
-            auto & info = *it;
-            if (info->addr == addr) return info;
+            if (it->addr == addr) return &(*it);
         }
         return nullptr;
+
     }
 };
 
@@ -113,14 +113,6 @@ private:
     struct Entry {
         std::shared_ptr<AugmentationInfo> info;
         std::set<std::string> outstanding;
-        // We need to keep a list of current outstanding instances in our entry
-        // to be able to decrement the inFlight count when expiring an entry
-        // (after a timeout)
-        //
-        // Note that we are keeping a weak_ptr in the case where the instance
-        // either disconnects or crashes. Keeping a weak_ptr prevents us from
-        // possibly keeping a dangling pointer
-        std::map<std::string, std::weak_ptr<AugmentorInstanceInfo>> instances;
         std::map<std::string, std::set<std::string> > augmentorAgents;
         OnFinished onFinished;
         Date timeout;
@@ -167,8 +159,8 @@ private:
 
     void handleAugmentorMessage(const std::vector<std::string> & message);
 
-    std::shared_ptr<AugmentorInstanceInfo> pickInstance(AugmentorInfo& aug);
-    void doAugmentation(std::shared_ptr<Entry>&& entry);
+    AugmentorInstanceInfo* pickInstance(AugmentorInfo& aug);
+    void doAugmentation(const std::shared_ptr<Entry> & entry);
 
     void recordStats();
 

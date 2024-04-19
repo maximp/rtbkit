@@ -62,8 +62,6 @@ postConstructorInit()
     auctionVerb = "POST";
     auctionResource = "/";
     absoluteTimeMax = 50.0;
-    disableAcceptProbability = false;
-    disableExceptionPrinting = false;
 
     numServingRequest = 0;
 
@@ -108,26 +106,9 @@ configure(const Json::Value & parameters)
     getParam(parameters, pingTimesByHostMs, "pingTimesByHostMs");
     getParam(parameters, pingTimeUnknownHostsMs, "pingTimeUnknownHostsMs");
     getParam(parameters, absoluteTimeMax, "absoluteTimeMax");
-    getParam(parameters, disableAcceptProbability, "disableAcceptProbability");
-    getParam(parameters, disableExceptionPrinting, "disableExceptionPrinting");
 
     if (parameters.isMember("realTimePolling"))
         realTimePolling(parameters["realTimePolling"].asBool());
-
-    configurePipeline(parameters["pipeline"]);
-}
-
-void
-HttpExchangeConnector::
-configurePipeline(const Json::Value& config)
-{
-    if (config.isNull()) {
-        Json::Value nullConfig;
-        nullConfig["type"] = "null";
-        this->pipeline = BidRequestPipeline::create("", getServices(), nullConfig);
-    } else {
-        this->pipeline = BidRequestPipeline::create("", getServices(), config);
-    }
 }
 
 void
@@ -153,8 +134,6 @@ configureHttp(int numThreads,
     this->auctionVerb = auctionVerb;
     this->realTimePolling(realTimePolling);
     this->absoluteTimeMax = absoluteTimeMax;
-
-    configurePipeline(Json::nullValue);
 }
 
 void
@@ -355,18 +334,6 @@ HttpExchangeConnector::
 periodicCallback(uint64_t numWakeups) const
 {
     recordLevel(numConnections(), "httpConnections");
-}
-
-PipelineStatus
-HttpExchangeConnector::
-preBidRequest(const HttpHeader& header, const std::string& payload) {
-    return pipeline->preBidRequest(this, header, payload);
-}
-
-PipelineStatus
-HttpExchangeConnector::
-postBidRequest(const std::shared_ptr<Auction>& auction) {
-    return pipeline->postBidRequest(this, auction);
 }
 
 } // namespace RTBKIT

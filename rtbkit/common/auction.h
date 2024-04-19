@@ -73,7 +73,6 @@ struct Auction : public std::enable_shared_from_this<Auction> {
     std::string requestStr;  ///< Stringified version of request
     std::string requestStrFormat;  ///< Format of stringified request
     std::string requestSerialized; ///< Serialized bid request (canonical)
-    std::string requestOriginal;
 
     ///< AugmentationList for each augmentors.
     std::unordered_map<std::string, AugmentationList> augmentations;

@@ -445,6 +445,16 @@ BOOST_AUTO_TEST_CASE( test_http_client_stress_test )
             BOOST_CHECK_EQUAL(errorCode, HttpClientError::None);
             BOOST_CHECK_EQUAL(status, 200);
 
+            int bodyNbr;
+            try {
+                bodyNbr = stoi(body);
+            }
+            catch (...) {
+                ::fprintf(stderr, "exception when parsing body: %s\n",
+                          body.c_str());
+                throw;
+            }
+
             if (numResponses == numReqs) {
                 ML::futex_wake(numResponses);
             }
@@ -652,6 +662,7 @@ BOOST_AUTO_TEST_CASE( test_http_client_connection_closed )
     auto proxies = make_shared<ServiceProxies>();
 
     HttpGetService service(proxies);
+    service.portToUse = 8080;
     service.addResponse("GET", "/", 200, "coucou");
     service.start();
     service.waitListening();

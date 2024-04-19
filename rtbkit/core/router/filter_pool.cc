@@ -10,6 +10,7 @@
 #include "rtbkit/common/bid_request.h"
 #include "rtbkit/common/exchange_connector.h"
 #include "rtbkit/core/agent_configuration/agent_config.h"
+#include "rtbkit/core/router/filters/static_filters.h"
 #include "soa/service/service_base.h"
 #include "jml/utils/exc_check.h"
 #include "jml/arch/tick_counter.h"
@@ -178,7 +179,7 @@ addFilter(const string& name)
 
     do {
         newData.reset(new Data(*oldData));
-        newData->addFilter(PluginInterface<FilterBase>::getPlugin(name)());
+        newData->addFilter(FilterRegistry::makeFilter(name));
     } while (!setData(oldData, newData));
 
     if (events) events->recordHit("filters.addFilter.%s", name);
@@ -213,38 +214,16 @@ initWithDefaultFilters()
 
     do {
         newData.reset(new Data);
-        for (const auto& ele: PluginInterface<FilterBase>::getNames()) {
-            newData->addFilter(PluginInterface<FilterBase>::getPlugin(ele)());
-            if (events) events->recordHit("filters.addFilter.%s", ele);
+
+        for (const auto& name: FilterRegistry::listFilters()) {
+            newData->addFilter(FilterRegistry::makeFilter(name));
+            if (events) events->recordHit("filters.addFilter.%s", name);
         }
 
     } while (!setData(oldData, newData));
 
 }
 
-void
-FilterPool::
-initWithFiltersFromJson(const Json::Value & json)
-{
-
-    GcLockBase::SharedGuard guard(gc);
-
-    Data* oldData = data.load();
-    unique_ptr<Data> newData;
-
-    if (!json.isArray())
-        throw Exception("filter list must be an array");
-
-    do {
-        newData.reset(new Data);
-
-        for (unsigned i = 0;  i < json.size();  ++i) {
-            const Json::Value & val = json[i];
-            newData->addFilter(PluginInterface<FilterBase>::getPlugin(val.asString())());
-            if (events) events->recordHit("filters.addFilter.%s", val.asString());
-        }
-    } while (!setData(oldData, newData));
-}
 
 
 unsigned
@@ -283,23 +262,6 @@ removeConfig(const string& name)
     } while (!setData(oldData, newData));
 
     if (events) events->recordHit("filters.removeConfig");
-}
-
-std::vector<string>
-FilterPool::
-getFilterNames() const
-{
-    GcLockBase::SharedGuard guard(gc, GcLockBase::RD_NO);
-
-    const Data* current = data.load();
-    std::vector<string> filter_names;
-    filter_names.reserve(current->filters.size());
-
-    for (FilterBase* filter : current->filters) {
-        filter_names.push_back(filter->name());
-    }
-
-    return filter_names;
 }
 
 

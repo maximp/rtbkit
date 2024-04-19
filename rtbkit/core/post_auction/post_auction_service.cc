@@ -13,7 +13,6 @@
 #include "rtbkit/common/messages.h"
 #include "soa/service/rest_request_params.h"
 #include "soa/service/rest_request_binding.h"
-#include "rtbkit/common/analytics.h"
 
 using namespace std;
 using namespace Datacratic;
@@ -48,6 +47,7 @@ PostAuctionService(
       auctions(65536),
       events(65536),
 
+      logger(getZmqContext()),
       endpoint(getZmqContext()),
       bridge(getZmqContext()),
       router(!!getZmqContext()),
@@ -73,6 +73,7 @@ PostAuctionService(ServiceBase & parent, const std::string & serviceName)
       auctions(65536),
       events(65536),
 
+      logger(getZmqContext()),
       endpoint(getZmqContext()),
       bridge(getZmqContext()),
       router(!!getZmqContext()),
@@ -84,16 +85,12 @@ PostAuctionService(ServiceBase & parent, const std::string & serviceName)
     monitorProviderClient.addProvider(this);
 }
 
-PostAuctionService::~PostAuctionService()
-{
-    shutdown();
-}
 
 void
 PostAuctionService::
 bindTcp()
 {
-    if (analytics) analytics->bindTcp();
+    logger.bindTcp(getServices()->ports->getRange("logs"));
     endpoint.bindTcp(getServices()->ports->getRange("postAuctionLoop"));
     bridge.agents.bindTcp(getServices()->ports->getRange("postAuctionLoopAgents"));
 
@@ -137,7 +134,7 @@ init(size_t externalShard, size_t internalShards)
         ratio = accumulate(orphanRatios.begin(), orphanRatios.end(), 0);
         ratio /= orphanRatios.size();
 
-        ExcCheckLess(ratio, 0.5, "Excessive orphaned events detected");
+        ExcCheckLess(ratio, 0.1, "Excessive orphaned events detected");
     };
     loop.addPeriodic("PostAuctionService::checkOrphans", 60.0, checkOrphans);
 }
@@ -197,13 +194,9 @@ initConnections(size_t shard)
 
     registerShardedServiceProvider(serviceName(), { "rtbPostAuctionService" }, shard);
 
-    if (analytics) {
-        LOG(print) << "post auction logger on " << analytics->serviceName() << endl;
-        analytics->init();
-    } else {
-        LOG(print) << "No logger is set for post auction" << endl;
-    }
-    
+    LOG(print) << "post auction logger on " << serviceName() + "/logger" << endl;
+    logger.init(getServices()->config, serviceName() + "/logger");
+
     auctions.onEvent = std::bind(&PostAuctionService::doAuction, this, _1);
     loop.addSource("PostAuctionService::auctions", auctions);
 
@@ -246,20 +239,10 @@ initConnections(size_t shard)
 
 void
 PostAuctionService::
-initAnalyticsPublisher(const string & baseUrl, const int numConnections)
+initAnalytics(const string & baseUrl, const int numConnections)
 {
-    LOG(print) << "analyticsPublisherURI: " << baseUrl << endl;
-    analyticsPublisher.init(baseUrl, numConnections);
-}
-
-void
-PostAuctionService::
-initAnalytics(const Json::Value & config)
-{
-    std::string pluginName = (config == Json::Value::null) ? "zmq" : config["pluginName"].asString();
-
-    Analytics::Factory factory = PluginInterface<Analytics>::getPlugin(pluginName);
-    analytics.reset(factory(serviceName(), getServices()));
+    LOG(print) << "analyticsURI: " << baseUrl << endl;
+    analytics.init(baseUrl, numConnections);
 }
 
 void
@@ -323,12 +306,12 @@ PostAuctionService::
 start(std::function<void ()> onStop)
 {
     loop.start(onStop);
-    if (analytics) analytics->start();
+    logger.start();
     monitorProviderClient.start();
     loopMonitor.start();
     matcher->start();
     bidder->start();
-    analyticsPublisher.start();
+    analytics.start();
 }
 
 void
@@ -338,12 +321,12 @@ shutdown()
     matcher->shutdown();
     loopMonitor.shutdown();
     loop.shutdown();
-    if (analytics) analytics->shutdown();
+    logger.shutdown();
     bridge.shutdown();
     endpoint.shutdown();
     configListener.shutdown();
     monitorProviderClient.shutdown();
-    analyticsPublisher.shutdown();
+    analytics.shutdown();
     forwarder.reset();
 }
 
@@ -545,13 +528,11 @@ doMatchedWinLoss(std::shared_ptr<MatchedWinLoss> event)
     if (event->type == MatchedWinLoss::Win || event->type == MatchedWinLoss::LateWin) {
         lastWinLoss = Date::now();
         stats.matchedWins++;
-    } else {
-        stats.matchedLosses++;
-        return;
     }
+    else stats.matchedLosses++;
 
-    if (analytics) event->publish(*analytics);
-    event->publish(analyticsPublisher);
+    event->publish(logger);
+    event->publish(analytics);
 
     deliverEvent("bidResult." + event->typeString(), "doWinLossEvent", event->response.account,
         [&](const AgentConfigEntry& entry)
@@ -568,16 +549,18 @@ doMatchedCampaignEvent(std::shared_ptr<MatchedCampaignEvent> event)
 
     lastCampaignEvent = Date::now();
 
-    if (analytics) event->publish(*analytics);
-    event->publish(analyticsPublisher);
+    event->publish(logger);
+    event->publish(analytics);
 
     // For the moment, send the message to all of the agents that are
     // bidding on this account
+    //
     deliverEvent("delivery." + event->label, "doCampaignEvent", event->account,
         [&](const AgentConfigEntry& entry)
         {
             bidder->sendCampaignEventMessage(entry.config, entry.name, *event);
         });
+
 }
 
 void
@@ -601,11 +584,8 @@ deliverEvent(const std::string& label, const std::string& eventType,
     if (!sent) {
         orphanEvents++;
         recordHit("%s.orphaned", label);
-        const std::string & function = ML::format("%s.noListeners%s", eventType, label);
-        if (analytics) analytics->logPAErrorMessage(function,
-                                    "nothing listening for account " + account.toString(),
-                                    {});
-        recordHit("error.%s",function);
+        logPAError(ML::format("%s.noListeners%s", eventType, label),
+                   "nothing listening for account " + account.toString());
     }
     else {
         recordHit("%s.delivered", label);
@@ -617,13 +597,8 @@ PostAuctionService::
 doUnmatched(std::shared_ptr<UnmatchedEvent> event)
 {
     stats.unmatchedEvents++;
-    if (analytics) event->publish(*analytics);
-    event->publish(analyticsPublisher);
-
-    deliverEvent("delivery.UNMATCHEDWIN", "doUnmatchedWin", event->event.account,
-            [&] (const AgentConfigEntry & entry) {
-                bidder->sendUnmatchedEventMessage(entry.config, entry.name, *event);
-            });
+    event->publish(logger);
+    event->publish(analytics);
 }
 
 void
@@ -631,8 +606,8 @@ PostAuctionService::
 doError(std::shared_ptr<PostAuctionErrorEvent> error)
 {
     stats.errors++;
-    if (analytics) error->publish(*analytics);
-    error->publish(analyticsPublisher);
+    error->publish(logger);
+    error->publish(analytics);
 }
 
 

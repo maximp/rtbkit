@@ -21,15 +21,6 @@ using namespace ML;
 
 namespace RTBKIT {
 
-namespace {
-    template<typename Func>
-    void jsonForeach(const Json::Value& value, Func&& func) {
-        for (auto it = value.begin(), end = value.end(); it != end; ++it) {
-            func(it.memberName(), *it);
-        }
-    }
-}
-
 
 /*****************************************************************************/
 /* CREATIVE                                                                  */
@@ -37,97 +28,45 @@ namespace {
 
 Creative::
 Creative(int width, int height, std::string name, int id, const std::string dealId)
-    : format(width, height), name(name), id(id),
-      duration(-1), bitrate(-1), dealId(dealId),
-      fees(NullFees::createNullFees()), type(Type::Image)
-
+    : format(width, height), name(name), id(id), dealId(dealId)
 {
-}
-
-Creative
-Creative::
-image(int width, int height, std::string name, int id, std::string dealId)
-{
-    Creative creative(width, height, name, id, dealId);
-    creative.type = Creative::Type::Image;
-    return creative;
-}
-
-Creative
-Creative::
-video(int width, int height, uint32_t duration, uint64_t bitrate, std::string name, int id, std::string dealId)
-{
-    Creative creative(width, height, name, id, dealId);
-    creative.duration = duration;
-    creative.bitrate = bitrate;
-    creative.type = Creative::Type::Video;
-    return creative;
 }
 
 void
 Creative::
 fromJson(const Json::Value & val)
 {
+    if (val.isMember("format")) {
+        format.fromJson(val["format"]);
+    }
+    else {
+        format.width = val["width"].asInt();
+        format.height = val["height"].asInt();
+    }
+    name = val["name"].asString();
 
-    type = Type::Image;
     id = -1;
-
-    jsonForeach(val, [&](const std::string& name, const Json::Value& value) {
-        if (name == "format")
-            format.fromJson(value);
-        else if (name == "width") {
-            ExcAssert(!format.valid());
-            format.width = value.asInt();
-        }
-        else if (name == "height") {
-            ExcAssert(!format.valid());
-            format.height = value.asInt();
-        }
-        else if (name == "name")
-            this->name = value.asString();
-        else if (name == "id")
-            id = value.asInt();
-        else if (name == "dealId")
-            dealId = val["dealId"].asString();
-        else if (name == "providerConfig")
-            providerConfig = value;
-        else if (name == "languageFilter")
-            languageFilter.fromJson(value, "languageFilter");
-        else if (name == "locationFilter")
-            locationFilter.fromJson(value, "locationFilter");
-        else if (name == "exchangeFilter")
-            exchangeFilter.fromJson(value, "exchangeFilter");
-        else if (name == "fees")
-            fees = Fees::createFees(val["fees"]);
-        else if (name == "segmentFilter") {
-            jsonForeach(value, [&](const std::string& source, const Json::Value& segValue) {
-                segments[source].fromJson(segValue);
-            });
-        }
-        else if (name == "type") {
-            const std::string type_ = value.asString();
-            if (type_ == "video")
-                type = Type::Video;
-            else if (type_ == "image")
-                type = Type::Image;
-            else
-                throw ML::Exception("Unknown type '%s'", type_.c_str());
-        }
-        else if (name == "duration")
-            duration = value.asUInt();
-        else if (name == "bitrate")
-            bitrate = value.asUInt();
-        // Extension
-        else {
-            extensions.add(ExtensionRegistry::create(name, value));
-        }
-    });
-
+    if (val.isMember("id"))
+        id = val["id"].asInt();
     if (id == -1)
         throw ML::Exception("creatives require an ID to be specified");
 
-    if (type == Type::Image && (duration != -1 || bitrate != -1))
-        throw ML::Exception("bitrate or duration are not allowed for an Image creative");
+    if (val.isMember("dealId"))
+        dealId = val["dealId"].asString();
+
+    providerConfig = val["providerConfig"];
+
+    languageFilter.fromJson(val["languageFilter"], "languageFilter");
+    locationFilter.fromJson(val["locationFilter"], "locationFilter");
+    exchangeFilter.fromJson(val["exchangeFilter"], "exchangeFilter");
+
+    if (val.isMember("segmentFilter")){
+        Json::Value segs = val["segmentFilter"];
+        for (auto jt = segs.begin(), jend = segs.end(); jt != jend;  ++jt) {
+            string source = jt.memberName();
+            segments[source].fromJson(*jt);
+        }
+    }
 }
 
 Json::Value
@@ -135,7 +74,6 @@ Creative::
 toJson() const
 {
     Json::Value result;
-    result["type"] = typeString();
     result["format"] = format.toJson();
     result["name"] = name;
     if (id != -1)
@@ -159,18 +97,6 @@ toJson() const
     if (!dealId.empty())
         result["dealId"] = dealId;
 
-    if (fees) {
-        result["fees"] = fees->toJson();
-    }
-
-    if (type == Type::Video) {
-        result["duration"] = duration;
-        result["bitrate"] = bitrate;
-    }
-    for (const auto& extension: extensions.list()) {
-        result[extension->extensionName()] = extension->toJson();
-    }
-
     return result;
 }
 
@@ -186,7 +112,6 @@ Creative::
 compatible(const AdSpot & adspot) const
 {
     return ((format.width == 0 && format.height == 0)
-            || adspot.formats.empty() // if no format was specified in bid request
             || adspot.formats.compatible(format));
 }
 
@@ -196,31 +121,6 @@ biddable(const std::string & exchange,
          const std::string & protocolVersion) const
 {
     return true;
-}
-
-bool
-Creative::
-isImage() const {
-    return type == Type::Image;
-}
-
-bool
-Creative::
-isVideo() const {
-    return type == Type::Video;
-}
-
-std::string
-Creative::
-typeString() const {
-    switch (type) {
-    case Type::Image:
-        return "image";
-    case Type::Video:
-        return "video";
-    }
-
-    return "unknown";
 }
 
 Json::Value jsonPrint(const Creative & c)
@@ -435,7 +335,7 @@ createFromJson(const Json::Value& json, const std::string& name)
 /*****************************************************************************/
 
 AgentConfig::
-AgentConfig(std::string name)
+AgentConfig()
     : externalId(0),
       external(false),
       test(false),
@@ -447,8 +347,7 @@ AgentConfig(std::string name)
       bidControlType(BC_RELAY), fixedBidCpmInMicros(0),
       winFormat(BRF_FULL),
       lossFormat(BRF_LIGHTWEIGHT),
-      errorFormat(BRF_LIGHTWEIGHT),
-      name(name)
+      errorFormat(BRF_LIGHTWEIGHT)
 {
     addAugmentation("random");
 }
@@ -592,9 +491,6 @@ createFromJson(const Json::Value & json)
 
         if (it.memberName() == "account") {
             newConfig.account = AccountKey::fromJson(*it);
-        }
-        else if (it.memberName() == "name") {
-            newConfig.name = it->asString();
         }
         else if (it.memberName() == "test") {
             newConfig.test = it->asBool();
@@ -781,12 +677,8 @@ createFromJson(const Json::Value & json)
         else if (it.memberName() == "errorFormat") {
             RTBKIT::fromJson(newConfig.errorFormat, *it);
         }
-        else if (it.memberName() == "ext") {
-            newConfig.ext = *it;
-        }
-        else {
-            newConfig.extensions.add(ExtensionRegistry::create(it.memberName(), *it));
-        }
+        else throw Exception("unknown config option: %s",
+                             it.memberName().c_str());
     }
 
     if (newConfig.account.empty())
@@ -821,7 +713,6 @@ toJson(bool includeCreatives) const
     result["account"] = account.toJson();
     result["externalId"] = externalId;
     result["external"] = external;
-    result["name"] = name;
     result["test"] = test;
     if (roundRobinGroup != "") {
         result["roundRobin"]["group"] = roundRobinGroup;
@@ -926,15 +817,10 @@ toJson(bool includeCreatives) const
     if (!providerConfig.isNull()) {
         result["providerConfig"] = providerConfig;
     }
-
     result["winFormat"] = RTBKIT::toJson(winFormat);
     result["lossFormat"] = RTBKIT::toJson(lossFormat);
     result["errorFormat"] = RTBKIT::toJson(errorFormat);
-
-    for (const auto& extension: extensions.list()) {
-        result[extension->extensionName()] = extension->toJson();
-    }
-
+    
     return result;
 }
 

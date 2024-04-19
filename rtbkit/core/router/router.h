@@ -43,7 +43,6 @@ struct Banker;
 struct BudgetController;
 struct Accountant;
 struct BidderInterface;
-struct Analytics;
 
 /*****************************************************************************/
 /* AGENT INFO                                                                */
@@ -113,8 +112,7 @@ struct Router : public ServiceBase,
            bool logBids = false,
            Amount maxBidAmount = USD_CPM(40),
            int secondsUntilSlowMode = MonitorClient::DefaultCheckTimeout,
-           Amount slowModeAuthorizedMoneyLimit = USD_CPM(100),
-           Seconds augmentationWindow = std::chrono::milliseconds(5));
+           Amount slowModeAuthorizedMoneyLimit = USD_CPM(100));
 
     Router(std::shared_ptr<ServiceProxies> services = std::make_shared<ServiceProxies>(),
            const std::string & serviceName = "router",
@@ -125,8 +123,7 @@ struct Router : public ServiceBase,
            bool logBids = false,
            Amount maxBidAmount = USD_CPM(40),
            int secondsUntilSlowMode = MonitorClient::DefaultCheckTimeout,
-           Amount slowModeAuthorizedMoneyLimit = USD_CPM(100),
-           Seconds augmentationWindow = std::chrono::milliseconds(5));
+           Amount slowModeAuthorizedMoneyLimit = USD_CPM(100));
 
     ~Router();
 
@@ -146,16 +143,7 @@ struct Router : public ServiceBase,
     void initBidderInterface(Json::Value const & json);
 
     /** Initialize analytics if it is used. */
-    void initAnalyticsPublisher(const std::string & baseUrl, const int numConnections);
-
-    /** Initialize exchages from json configuration. */
-    void initExchanges(const Json::Value & config);
-
-    /** Initialize filters from json configuration. */
-    void initFilters(const Json::Value & config = Json::Value::null);
-
-    /** Initialize analytics from json configuration. */
-    void initAnalytics(const Json::Value & config = Json::Value::null);
+    void initAnalytics(const std::string & baseUrl, const int numConnections);
 
     /** Initialize all of the internal data structures and configuration. */
     void init();
@@ -178,10 +166,6 @@ struct Router : public ServiceBase,
         to unbounded overspend, so please do really only use it for testing.
     */
     void unsafeDisableAuctionProbability();
-
-    /** Disable the monitor client
-    */
-    void unsafeDisableSlowMode();
 
     /** Start the router running in a separate thread.  The given function
         will be called when the thread is stopped. */
@@ -219,14 +203,11 @@ struct Router : public ServiceBase,
     */
     void connectExchange(ExchangeConnector & exchange)
     {
-        exchange.onNewAuction  = [=] (std::shared_ptr<Auction> a) {
-                        this->injectAuction(a, secondsUntilLossAssumed_); };
-        exchange.onAuctionDone = [=] (std::shared_ptr<Auction> a) {
-                        this->onAuctionDone(a); };
+        exchange.onNewAuction  = [=] (std::shared_ptr<Auction> a) { this->injectAuction(a, secondsUntilLossAssumed_); };
+        exchange.onAuctionDone = [=] (std::shared_ptr<Auction> a) { this->onAuctionDone(a); };
         exchange.onAuctionError = [=] (const std::string & channel,
                                        std::shared_ptr<Auction> auction,
-                                       const std::string message) {
-                        this->onAuctionError(channel, auction, message); };
+                                       const std::string message) { this->onAuctionError(channel, auction, message); };
     }
 
     /** Register the exchange with the router and make it take ownership of it */
@@ -274,22 +255,16 @@ struct Router : public ServiceBase,
         connectExchange(*exchange);
     }
 
-    void addExchangeNoConnect(std::shared_ptr<ExchangeConnector> const & exchange)
-    {
-        loopMonitor.addCallback(
-                "exchanges." + exchange->exchangeName(),
-                exchange->getLoadSampleFn());
-
-        Guard guard(lock);
-        exchanges.push_back(exchange);
-    }
-
-    /** Start up a new exchange from type and configuration from the given JSON blob. */
-    void initExchange(const std::string & exchangeType,
+    /** Start up a new exchange and connect it to the router.  The exchange
+        will read its configuration from the given JSON blob.
+    */
+    void startExchange(const std::string & exchangeType,
                        const Json::Value & exchangeConfig);
 
-    /** Init a new exchange from configuration and type from the given JSON blob. */
-    void initExchange(const Json::Value & exchangeConfig);
+    /** Start up a new exchange and connect it to the router.  The exchange
+        will read its configuration and type from the given JSON blob.
+    */
+    void startExchange(const Json::Value & exchangeConfig);
 
     /** Inject an auction into the router.
         auction:   the auction object
@@ -406,7 +381,7 @@ struct Router : public ServiceBase,
      */
     virtual void submitToPostAuctionService(std::shared_ptr<Auction> auction,
                                             Id auctionId,
-                                            Auction::Response & bid);
+                                            const Auction::Response & bid);
 
 protected:
     // This thread contains the main router loop
@@ -475,9 +450,6 @@ public:
                           const std::shared_ptr<Auction> &auction,
                           const char *reason, const char *message, ...);
 
-    void returnInvalidBid(const std::string &agent, const std::string &bidData,
-                          const std::shared_ptr<Auction> &auction,
-                          const std::string &reason, const char *message, ...);
     void doShutdown();
 
     /** Perform initial auction processing to see how it can be used.  Returns a
@@ -629,7 +601,9 @@ public:
                         const std::string & exception,
                         Args... args)
     {
-        analyticsPublisher.publish("ROUTERERROR", Date::now().print(5),
+        logger.publish("ROUTERERROR", Date::now().print(5),
+                       function, exception, args...);
+        analytics.publish("ROUTERERROR", Date::now().print(5),
                        function, exception, args...);
         recordHit("error.%s", function);
     }
@@ -720,14 +694,30 @@ public:
     /** Log bids */
     bool logBids;
 
+    /** Log a given message to the given channel. */
+    template<typename... Args>
+    void logMessage(const std::string & channel, Args... args)
+    {
+        using namespace std;
+        //cerr << "********* logging message to " << channel << endl;
+        logger.publish(channel, Date::now().print(5), args...);
+    }
 
-    /** Log a given message to analyticsPublisher endpoint on given channel. */
+    /** Log a given message to analytics endpoint on given channel. */
     template<typename... Args>
     void logMessageToAnalytics(const std::string & channel, Args... args)
     {
-        analyticsPublisher.publish(channel, Date::now().print(5), args...);
+        analytics.publish(channel, Date::now().print(5), args...);
     }
 
+    /** Log a given message to the given channel. */
+    template<typename... Args>
+    void logMessageNoTimestamp(const std::string & channel, Args... args)
+    {
+        using namespace std;
+        //cerr << "********* logging message to " << channel << endl;
+        logger.publish(channel, args...);
+    }
 
     /*************************************************************************/
     /* DEBUGGING                                                             */
@@ -766,8 +756,8 @@ public:
 
     Date getCurrentTime() const { return Date::now(); }
 
-    std::unique_ptr<Analytics> analytics;
-    AnalyticsPublisher analyticsPublisher;
+    ZmqNamedPublisher logger;
+    AnalyticsPublisher analytics;
 
     /** Debug only */
     bool doDebug;
@@ -806,7 +796,6 @@ public:
     MonitorIndicator getProviderIndicators() const;
 
     double slowModeTolerance;
-    Seconds augmentationWindow;
 };
 
 

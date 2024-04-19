@@ -95,9 +95,9 @@ init()
             doDisconnection(addr);
         };
 
-    inbox.onEvent = [&] (std::shared_ptr<Entry>&& entry)
+    inbox.onEvent = [&] (const std::shared_ptr<Entry>& entry)
         {
-            doAugmentation(std::move(entry));
+            doAugmentation(entry);
         };
 
     addSource("AugmentationLoop::inbox", inbox);
@@ -181,7 +181,7 @@ recordStats()
     {
         size_t inFlights = 0;
         for (const auto& instance : it->second->instances)
-            inFlights += instance->numInFlight;
+            inFlights += instance.numInFlight;
 
         recordLevel(inFlights, "augmentor.%s.numInFlight", it->first);
     }
@@ -343,11 +343,11 @@ augment(const std::shared_ptr<AugmentationInfo> & info,
     }
 }
 
-std::shared_ptr<AugmentorInstanceInfo>
+AugmentorInstanceInfo*
 AugmentationLoop::
 pickInstance(AugmentorInfo& aug)
 {
-    std::shared_ptr<AugmentorInstanceInfo> instance;
+    AugmentorInstanceInfo* instance = nullptr;
     int minInFlights = std::numeric_limits<int>::max();
 
     stringstream ss;
@@ -355,12 +355,11 @@ pickInstance(AugmentorInfo& aug)
     for (auto it = aug.instances.begin(), end = aug.instances.end();
          it != end; ++it)
     {
-        auto & ptr = *it;
-        if (ptr->numInFlight >= minInFlights) continue;
-        if (ptr->numInFlight >= ptr->maxInFlight) continue;
+        if (it->numInFlight >= minInFlights) continue;
+        if (it->numInFlight >= it->maxInFlight) continue;
 
-        instance = ptr;
-        minInFlights = ptr->numInFlight;
+        instance = &(*it);
+        minInFlights = it->numInFlight;
     }
 
     if (instance) instance->numInFlight++;
@@ -370,7 +369,7 @@ pickInstance(AugmentorInfo& aug)
 
 void
 AugmentationLoop::
-doAugmentation(std::shared_ptr<Entry>&& entry)
+doAugmentation(const std::shared_ptr<Entry> & entry)
 {
     Date now = Date::now();
 
@@ -390,7 +389,7 @@ doAugmentation(std::shared_ptr<Entry>&& entry)
     {
         auto & aug = *augmentors[*it];
 
-        auto instance = pickInstance(aug);
+        const AugmentorInstanceInfo* instance = pickInstance(aug);
         if (!instance) {
             recordHit("augmentor.%s.skippedTooManyInFlight", *it);
             continue;
@@ -398,8 +397,6 @@ doAugmentation(std::shared_ptr<Entry>&& entry)
         recordHit("augmentor.%s.instances.%s.request", *it, instance->addr);
 
         set<string> agents = entry->augmentorAgents[*it];
-
-        entry->instances[*it] = instance;
         
         std::ostringstream availableAgentsStr;
         ML::DB::Store_Writer writer(availableAgentsStr);
@@ -419,7 +416,7 @@ doAugmentation(std::shared_ptr<Entry>&& entry)
     }
 
     if (sentToAugmentor)
-        augmenting.insert(entry->info->auction->id, std::move(entry), entry->timeout);
+        augmenting.insert(entry->info->auction->id, entry, entry->timeout);
     else entry->onFinished(entry->info);
 
     recordLevel(Date::now().secondsSince(now), "requestTimeMs");
@@ -457,7 +454,7 @@ doConfig(const std::vector<std::string> & message)
         recordHit("augmentor.%s.configured", name);
     }
 
-    info->instances.push_back(std::make_shared<AugmentorInstanceInfo>(addr, maxInFlight));
+    info->instances.emplace_back(addr, maxInFlight);
     recordHit("augmentor.%s.instances.%s.configured", name, addr);
 
 
@@ -487,11 +484,10 @@ doDisconnection(const std::string & addr, const std::string & aug)
                  end = augmentor.instances.end();
              it != end; ++it)
         {
-            auto & ptr = *it;
-            if (ptr->addr != addr) continue;
+            if (it->addr != addr) continue;
 
             recordHit("augmentor.%s.instances.%s.disconnected",
-                    augmentor.name, ptr->addr);
+                    augmentor.name, it->addr);
 
             augmentor.instances.erase(it);
             break;
@@ -596,13 +592,6 @@ void
 AugmentationLoop::
 augmentationExpired(const Id & id, const Entry & entry)
 {
-    for (const auto & instance: entry.instances) {
-        // If the instance still exsits (it is still alive), we decrement
-        // the inFlight count
-        auto info = instance.second.lock();
-        if (info) info->numInFlight--;
-    }
-
     entry.onFinished(entry.info);
 }                     
 

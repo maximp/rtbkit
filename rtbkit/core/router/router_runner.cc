@@ -20,7 +20,6 @@
 #include "rtbkit/core/banker/slave_banker.h"
 #include "rtbkit/core/banker/local_banker.h"
 #include "rtbkit/core/banker/split_banker.h"
-#include "rtbkit/core/banker/null_banker.h"
 #include "soa/service/process_stats.h"
 #include "jml/arch/timers.h"
 #include "jml/utils/file_functions.h"
@@ -49,8 +48,6 @@ RouterRunner::
 RouterRunner() :
     exchangeConfigurationFile("rtbkit/examples/router-config.json"),
     bidderConfigurationFile("rtbkit/examples/bidder-config.json"),
-    filterConfigurationFile(""),
-    analyticsConfigurationFile(""),
     lossSeconds(15.0),
     noPostAuctionLoop(false),
     noBidProb(false),
@@ -61,10 +58,8 @@ RouterRunner() :
     slowModeTimeout(MonitorClient::DefaultCheckTimeout),
     slowModeTolerance(MonitorClient::DefaultTolerance),
     slowModeMoneyLimit(""),
-    analyticsPublisherOn(false),
-    analyticsPublisherConnections(1),
-    augmentationWindowms(5),
-    dableSlowMode(false)
+    analyticsOn(false),
+    analyticsConnections(1)
 {
 }
 
@@ -93,10 +88,6 @@ doOptions(int argc, char ** argv,
          "configuration file with exchange data")
         ("bidder,b", value<string>(&bidderConfigurationFile),
          "configuration file with bidder interface data")
-        ("filters-configuration", value<string>(&filterConfigurationFile),
-          "configuration file with enabled filters data")
-        ("analytics", value<string>(&analyticsConfigurationFile),
-          "configuration file for analytics")
         ("log-auctions", value<bool>(&logAuctions)->zero_tokens(),
          "log auction requests")
         ("log-bids", value<bool>(&logBids)->zero_tokens(),
@@ -105,20 +96,16 @@ doOptions(int argc, char ** argv,
          "maximum bid price accepted by router")
         ("slow-mode-money-limit,s", value<string>(&slowModeMoneyLimit)->default_value("100000USD/1M"),
          "Amout of money authorized per second when router enters slow mode (default is 100000USD/1M).")
-        ("analyticsPublisher,a", bool_switch(&analyticsPublisherOn),
-         "Send data to analyticsPublisher logger.")
-        ("analyticsPublisher-connections", value<int>(&analyticsPublisherConnections),
+        ("analytics,a", bool_switch(&analyticsOn),
+         "Send data to analytics logger.")
+        ("analytics-connections", value<int>(&analyticsConnections),
          "Number of connections for the analytics publisher.")
         ("local-banker", value<string>(&localBankerUri),
          "address of where the local banker can be found.")
         ("local-banker-debug", bool_switch(&localBankerDebug),
          "enable local banker debug for more precise tracking by account")
         ("banker-choice", value<string>(&bankerChoice),
-         "split or local banker can be chosen.")
-         ("augmenter-timeout",value<int>(&augmentationWindowms),
-         "configure the augmenter  timeout (in milliseconds)")
-        ("no slow mode", value<bool>(&dableSlowMode)->zero_tokens(),
-         "disable the slow mode.");
+         "split or local banker can be chosen.");
 
     options_description all_opt = opts;
     all_opt
@@ -149,16 +136,8 @@ init()
     auto proxies = serviceArgs.makeServiceProxies();
     auto serviceName = serviceArgs.serviceName("router");
 
-    // Load configuration files
-    auto exchangeConfig = loadJsonFromFile(exchangeConfigurationFile);
-    auto bidderConfig = loadJsonFromFile(bidderConfigurationFile);
-    Json::Value filterConfig;
-    if (!filterConfigurationFile.empty())
-        filterConfig = loadJsonFromFile(filterConfigurationFile);
-    Json::Value analyticsConfig;
-    if (!analyticsConfigurationFile.empty())
-        analyticsConfig = loadJsonFromFile(analyticsConfigurationFile);
-
+    exchangeConfig = loadJsonFromFile(exchangeConfigurationFile);
+    bidderConfig = loadJsonFromFile(bidderConfigurationFile);
 
     const auto amountSlowModeMoneyLimit = Amount::parse(slowModeMoneyLimit);
     const auto maxBidPriceAmount = USD_CPM(maxBidPrice);
@@ -172,8 +151,6 @@ init()
             << "slow-mode-money-limit= " << amountSlowModeMoneyLimit <<endl;
     }
 
-    Seconds augmentationWindow = std::chrono::milliseconds(augmentationWindowms);
-
     auto connectPostAuctionLoop = !noPostAuctionLoop;
     auto enableBidProbability = !noBidProb;
     router = std::make_shared<Router>(proxies, serviceName, lossSeconds,
@@ -181,24 +158,20 @@ init()
                                       enableBidProbability,
                                       logAuctions, logBids,
                                       USD_CPM(maxBidPrice),
-                                      slowModeTimeout, amountSlowModeMoneyLimit, augmentationWindow);
+                                      slowModeTimeout, amountSlowModeMoneyLimit);
     router->slowModeTolerance = slowModeTolerance;
     router->initBidderInterface(bidderConfig);
-    if (dableSlowMode) {
-       router->unsafeDisableSlowMode();
-    }
-    if (analyticsPublisherOn) {
-        const auto & analyticsPublisherUri = proxies->params["analytics-uri"].asString();
-        if (!analyticsPublisherUri.empty()) {
-            router->initAnalyticsPublisher(analyticsPublisherUri, analyticsPublisherConnections);
+    if (analyticsOn) {
+        const auto & analyticsUri = proxies->params["analytics-uri"].asString();
+        if (!analyticsUri.empty()) {
+            router->initAnalytics(analyticsUri, analyticsConnections);
         }
         else
-            LOG(print) << "analyticsPublisher-uri is not in the config" << endl;
+            LOG(print) << "analytics-uri is not in the config" << endl;
     }
-
-    router->initAnalytics(analyticsConfig);
     router->init();
 
+    slaveBanker = bankerArgs.makeBanker(proxies, router->serviceName() + ".slaveBanker");
     if (localBankerUri != "") {
         localBanker = make_shared<LocalBanker>(proxies, ROUTER, router->serviceName());
         localBanker->init(localBankerUri);
@@ -215,20 +188,14 @@ init()
                 }
             }
         }
-        slaveBanker = bankerArgs.makeBanker(proxies, router->serviceName() + ".slaveBanker");
         banker = make_shared<SplitBanker>(slaveBanker, localBanker, campaignSet);
     } else if (localBanker && bankerChoice == "local") {
         banker = localBanker;
-    } else if (bankerChoice == "null") {
-        banker = make_shared<NullBanker>(true, router->serviceName());
     } else {
-        slaveBanker = bankerArgs.makeBanker(proxies, router->serviceName() + ".slaveBanker");
         banker = slaveBanker;
     }
 
     router->setBanker(banker);
-    router->initExchanges(exchangeConfig);
-    router->initFilters(filterConfig);
     router->bindTcp();
 }
 
@@ -236,9 +203,13 @@ void
 RouterRunner::
 start()
 {
-    if (slaveBanker) slaveBanker->start();
+    slaveBanker->start();
     if (localBanker) localBanker->start();
     router->start();
+
+    // Start all exchanges
+    for (auto & exchange: exchangeConfig)
+        router->startExchange(exchange);
 }
 
 void
@@ -246,7 +217,7 @@ RouterRunner::
 shutdown()
 {
     router->shutdown();
-    if (slaveBanker) slaveBanker->shutdown();
+    slaveBanker->shutdown();
     if (localBanker) localBanker->shutdown();
 }
 

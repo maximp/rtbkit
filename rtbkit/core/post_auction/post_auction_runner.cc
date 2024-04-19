@@ -10,7 +10,6 @@
 #include "rtbkit/core/banker/slave_banker.h"
 #include "rtbkit/core/banker/local_banker.h"
 #include "rtbkit/core/banker/split_banker.h"
-#include "rtbkit/core/banker/null_banker.h"
 #include "soa/service/service_utils.h"
 #include "soa/service/process_stats.h"
 #include "soa/utils/print_utils.h"
@@ -44,11 +43,10 @@ PostAuctionRunner() :
     auctionTimeout(EventMatcher::DefaultAuctionTimeout),
     winTimeout(EventMatcher::DefaultWinTimeout),
     bidderConfigurationFile("rtbkit/examples/bidder-config.json"),
-    analyticsConfigurationFile(""),
     winLossPipeTimeout(PostAuctionService::DefaultWinLossPipeTimeout),
     campaignEventPipeTimeout(PostAuctionService::DefaultCampaignEventPipeTimeout),
-    analyticsPublisherOn(false),
-    analyticsPublisherConnections(1),
+    analyticsOn(false),
+    analyticsConnections(1),
     localBankerDebug(false)
 {
 }
@@ -64,8 +62,6 @@ doOptions(int argc, char ** argv,
     postAuctionLoop_options.add_options()
         ("bidder,b", value<string>(&bidderConfigurationFile),
          "configuration file with bidder interface data")
-        ("analytics", value<string>(&analyticsConfigurationFile),
-         "configuration file for analytics")
         ("shard,s", value<size_t>(&shard),
          "Shard index starting at 0 for this post auction loop")
         ("win-seconds", value<float>(&winTimeout),
@@ -76,9 +72,9 @@ doOptions(int argc, char ** argv,
          "Timeout before sending error on WinLoss pipe")
         ("campaignEventPipe-seconds", value<int>(&campaignEventPipeTimeout),
          "Timeout before sending error on CampaignEvent pipe")
-        ("analyticsPublisher,a", bool_switch(&analyticsPublisherOn),
+        ("analytics,a", bool_switch(&analyticsOn),
          "Send data to analytics logger.")
-        ("analyticsPublisher-connections", value<int>(&analyticsPublisherConnections),
+        ("analytics-connections", value<int>(&analyticsConnections),
          "Number of connections for the analytics publisher.")
         ("forward-auctions", value<std::string>(&forwardAuctionsUri),
          "When provided the PAL will forward all auctions to the given URI.")
@@ -118,15 +114,10 @@ init()
     auto proxies = serviceArgs.makeServiceProxies();
     auto serviceName = serviceArgs.serviceName("PostAuctionLoop");
 
-    // Load configuration files
     auto bidderConfig = loadJsonFromFile(bidderConfigurationFile);
-    Json::Value analyticsConfig;
-    if (!analyticsConfigurationFile.empty())
-        analyticsConfig = loadJsonFromFile(analyticsConfigurationFile);
 
     postAuctionLoop = std::make_shared<PostAuctionService>(proxies, serviceName);
     postAuctionLoop->initBidderInterface(bidderConfig);
-    postAuctionLoop->initAnalytics(analyticsConfig);
     postAuctionLoop->init(shard);
 
     postAuctionLoop->setWinTimeout(winTimeout);
@@ -139,6 +130,7 @@ init()
     LOG(print) << "winLoss pipe timeout is " << winLossPipeTimeout << std::endl;
     LOG(print) << "campaignEvent pipe timeout is " << campaignEventPipeTimeout << std::endl;
 
+    slaveBanker = bankerArgs.makeBanker(proxies, postAuctionLoop->serviceName() + ".slaveBanker");
     if (localBankerUri != "") {
         localBanker = make_shared<LocalBanker>(proxies, POST_AUCTION, postAuctionLoop->serviceName());
         localBanker->init(localBankerUri);
@@ -154,35 +146,26 @@ init()
                 }
             }
         }
-
-        slaveBanker = bankerArgs.makeBanker(proxies, postAuctionLoop->serviceName() + ".slaveBanker");
+        postAuctionLoop->addSource("local-banker", *localBanker);
         banker = make_shared<SplitBanker>(slaveBanker, localBanker, campaignSet);
-        postAuctionLoop->addSource("local-banker", *localBanker);
-        postAuctionLoop->addSource("slave-banker", *slaveBanker);
-
     } else if (localBanker && bankerChoice == "local") {
-        banker = localBanker;
         postAuctionLoop->addSource("local-banker", *localBanker);
-
-    } else if (bankerChoice == "null") {
-        banker = make_shared<NullBanker>(true, postAuctionLoop->serviceName());
-
+        banker = localBanker;
     } else {
-        slaveBanker = bankerArgs.makeBanker(proxies, postAuctionLoop->serviceName() + ".slaveBanker");
         banker = slaveBanker;
-        postAuctionLoop->addSource("slave-banker", *slaveBanker);
     }
-    postAuctionLoop->setBanker(banker);
 
-    if (analyticsPublisherOn) {
-        const auto & analyticsPublisherUri = proxies->params["analytics-uri"].asString();
-        if (!analyticsPublisherUri.empty()) {
-            postAuctionLoop->initAnalyticsPublisher(analyticsPublisherUri, analyticsPublisherConnections);
+    if (analyticsOn) {
+        const auto & analyticsUri = proxies->params["analytics-uri"].asString();
+        if (!analyticsUri.empty()) {
+            postAuctionLoop->initAnalytics(analyticsUri, analyticsConnections);
         }
         else
-            LOG(print) << "analyticsPublisher-uri is not in the config" << endl;
+            LOG(print) << "analytics-uri is not in the config" << endl;
     }
 
+    postAuctionLoop->addSource("slave-banker", *slaveBanker);
+    postAuctionLoop->setBanker(banker);
     postAuctionLoop->bindTcp();
 
     if (!forwardAuctionsUri.empty())
@@ -201,7 +184,7 @@ PostAuctionRunner::
 shutdown()
 {
     postAuctionLoop->shutdown();
-    if (slaveBanker) slaveBanker->shutdown();
+    slaveBanker->shutdown();
     if (localBanker) localBanker->shutdown();
 }
 

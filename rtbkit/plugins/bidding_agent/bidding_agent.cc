@@ -357,8 +357,8 @@ checkMessageSize(const std::vector<std::string>& msg, int expectedSize)
         return;
 
     string msgStr = boost::lexical_cast<string>(msg);
-    throw ML::Exception("Message of wrong size: size=%zu, expected=%d, msg=%s",
-                        msg.size(), expectedSize, msgStr.c_str());
+    throw ML::Exception("Message of wrong size: size=%d, expected=%d, msg=%s",
+            msg.size(), expectedSize, msgStr.c_str());
 }
 
 void
@@ -399,9 +399,9 @@ handleBidRequest(const std::string & fromRouter,
 
     recordHit("requests");
 
+    ExcCheck(!requests.count(id), "seen multiple requests with same ID");
     {
         lock_guard<mutex> guard (requestsLock);
-        ExcCheck(!requests.count(id), "seen multiple requests with same ID");
 
         requests[id].timestamp = Date::now();
         requests[id].fromRouter = fromRouter;
@@ -425,8 +425,6 @@ handleResult(const std::vector<std::string>& msg, ResultCbFn& callback)
     if (result.result == BS_WIN) {
         recordLevel(int64_t(MicroUSD(result.secondPrice)), "winPrice");
         recordCount(int64_t(MicroUSD(result.secondPrice)), "winPriceTotal");
-        Bid bid = result.ourBid.bidForSpot(result.spotNum);
-        recordLevel(int64_t(MicroUSD(bid.price)), "bidPriceOnWin");
     }
 
     callback(result);
@@ -471,18 +469,8 @@ handleDelivery(const std::vector<std::string>& msg, DeliveryCbFn& callback)
 
 void
 BiddingAgent::
-doBid(Id id, Bids bids, const Json::Value & jsonMeta, const WinCostModel & wcm)
+doBid(Id id, const Bids & bids, const Json::Value & jsonMeta, const WinCostModel & wcm)
 {
-    for (Bid& bid : bids) {
-        if (bid.creativeIndex >= 0) {
-            if (!bid.isNullBid()) {
-                recordLevel(bid.price.value, "bidPrice." + bid.price.getCurrencyStr());
-            }
-
-            bid.price = agent_config.creatives[bid.creativeIndex].fees->applyFees(bid.price);
-        }
-    }
-
     Json::FastWriter jsonWriter;
 
     string response = jsonWriter.write(bids.toJson());
@@ -527,7 +515,7 @@ doBid(Id id, Bids bids, const Json::Value & jsonMeta, const WinCostModel & wcm)
         if (bid.isNullBid()) recordHit("noBid");
         else {
             recordHit("bids");
-            recordLevel(bid.price.value, "bidPriceAugmented." + bid.price.getCurrencyStr());
+            recordLevel(bid.price.value, "bidPrice." + bid.price.getCurrencyStr());
         }
     }
 }
@@ -583,9 +571,6 @@ doConfigJson(Json::Value jsonConfig)
     boost::trim(newConfig);
 
     sendConfig(newConfig);
-
-    agent_config = AgentConfig::createFromJson(jsonConfig);
-
 }
 
 void

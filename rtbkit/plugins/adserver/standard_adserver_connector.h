@@ -6,51 +6,71 @@
 
 #include <memory>
 #include <string>
+#include <vector>
+
+#include <boost/program_options/cmdline.hpp>
+#include <boost/program_options/positional_options.hpp>
+#include <boost/program_options/options_description.hpp>
+
+#include "soa/service/carbon_connector.h"
+#include "soa/service/service_base.h"
+#include "soa/service/service_utils.h"
+#include "soa/service/zmq_named_pub_sub.h"
+#include "soa/types/date.h"
 
 #include "rtbkit/plugins/adserver/http_adserver_connector.h"
 #include "rtbkit/common/analytics_publisher.h"
 
-namespace RTBKIT { struct Analytics; }
-namespace Datacratic { struct ServiceProxies; }
-namespace Json { struct Value; }
-
 namespace RTBKIT {
+
+using namespace std;
+
+struct StandardAdServerArguments : ServiceProxyArguments
+{
+    boost::program_options::options_description makeProgramOptions();
+    void validate();
+
+    int winPort;
+    int eventsPort;
+
+    bool verbose;
+
+    bool analyticsOn;
+    int analyticsConnections;
+};
 
 struct StandardAdServerConnector : public HttpAdServerConnector
 {
-    StandardAdServerConnector(std::shared_ptr<Datacratic::ServiceProxies> & proxy,
-                              const std::string & serviceName = "StandardAdServer");
-
-    StandardAdServerConnector(std::string const & serviceName,
-                              std::shared_ptr<Datacratic::ServiceProxies> const & proxy,
+    StandardAdServerConnector(shared_ptr<Datacratic::ServiceProxies> & proxy,
+                              const string & serviceName = "StandardAdServer");
+    StandardAdServerConnector(std::string const & serviceName, std::shared_ptr<Datacratic::ServiceProxies> const & proxy,
                               Json::Value const & json);
 
+    void init(StandardAdServerArguments & ssConfig);
     void init(int winsPort, int eventsPort);
     void start();
     void shutdown();
 
     /** Handle events received on the win port */
     HttpAdServerResponse handleWinRq(const HttpHeader & header,
-                                     const Json::Value & json,
-                                     const std::string & jsonStr);
+                     const Json::Value & json, const string & jsonStr);
 
     /** Handle events received on the events port */
     HttpAdServerResponse handleDeliveryRq(const HttpHeader & header,
-                                          const Json::Value & json,
-                                          const std::string & jsonStr);
+                          const Json::Value & json, const string & jsonStr);
 
     void publishError(HttpAdServerResponse & resp);
 
     /** */
-    AnalyticsPublisher analyticsPublisher_;
+    Datacratic::ZmqNamedPublisher publisher_;
+    AnalyticsPublisher analytics_;
 
 private :
 
-    void init(int winsPort, int eventsPort, bool verbose,
-                    bool analyticsPublisherOn = false, int analyticsPublisherConnections = 1);
+    void init(int winsPort, int eventsPort, bool verbose, bool analyticsOn = false, int analyticsConnections = 1);
     virtual void initEventType(const Json::Value &json);
 
-    std::map<std::string, std::string> eventType;
+    std::map<std::string , std::string> eventType;  
     bool verbose;
 };
 

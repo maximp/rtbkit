@@ -1,12 +1,9 @@
 #!/bin/bash
 
-set -e
-set -x
-
 echo "installing from " $1
 
-cd $1
-cp -av * /
+mkdir -p /opt
+cp -r $1/* /opt
+cp -r $1/etc/* /etc
 
-shift
-$*
+$2

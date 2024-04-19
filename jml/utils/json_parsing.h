@@ -26,8 +26,6 @@ std::string jsonEscape(const std::string & str);
 
 void jsonEscape(const std::string & str, std::ostream & out);
 
-std::string expectJsonString(Parse_Context & context);
-
 /*
  * If non-ascii characters are found an exception is thrown
  */
@@ -116,7 +114,7 @@ expectJson(Parse_Context & context)
 {
     context.skip_whitespace();
     if (*context == '"')
-        return expectJsonString(context);
+        return expectJsonStringAscii(context);
     else if (context.match_literal("null"))
         return Json::Value();
     else if (context.match_literal("true"))

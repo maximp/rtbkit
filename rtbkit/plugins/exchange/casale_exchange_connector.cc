@@ -24,27 +24,27 @@ namespace Default {
 
 CasaleExchangeConnector::CasaleExchangeConnector(
         ServiceBase& owner, std::string name) 
-    : OpenRTBExchangeConnector(owner, std::move(name)),
-      configuration_("casale")
+    : OpenRTBExchangeConnector(owner, std::move(name))
+    , creativeConfig("casale")
 {
     this->auctionResource = "/bidder";
     this->auctionVerb = "POST";
-    init();
+    initCreativeConfiguration();
 }
 
 CasaleExchangeConnector::CasaleExchangeConnector(
         std::string name, std::shared_ptr<ServiceProxies> proxies)
-    : OpenRTBExchangeConnector(std::move(name), std::move(proxies)),
-      configuration_("casale")
+    : OpenRTBExchangeConnector(std::move(name), std::move(proxies))
+    , creativeConfig("casale")
 {
     this->auctionResource = "/bidder";
     this->auctionVerb = "POST";
-    init();
+    initCreativeConfiguration();
 }
 
-void CasaleExchangeConnector::init()
+void CasaleExchangeConnector::initCreativeConfiguration()
 {
-    configuration_.addField(
+    creativeConfig.addField(
         "adm",
         [](const Json::Value& value, CreativeInfo& info) {
             Datacratic::jsonDecode(value, info.adm);
@@ -55,7 +55,7 @@ void CasaleExchangeConnector::init()
             return true;
     }).snippet();
 
-    configuration_.addField(
+    creativeConfig.addField(
         "adomain",
         [](const Json::Value& value, CreativeInfo& info) {
             Datacratic::jsonDecode(value, info.adomain);
@@ -127,7 +127,7 @@ CasaleExchangeConnector::getCreativeCompatibility(
         const Creative& creative,
         bool includeReasons) const
 {
-    return configuration_.handleCreativeCompatibility(creative, includeReasons);
+    return creativeConfig.handleCreativeCompatibility(creative, includeReasons);
 }
 
 std::shared_ptr<BidRequest>
@@ -214,7 +214,7 @@ CasaleExchangeConnector::setSeatBid(
     bid.price.val *= 100;
 
     if (!creativeInfo->adomain.empty()) bid.adomain = creativeInfo->adomain;
-    bid.adm = configuration_.expand(creativeInfo->adm, context);
+    bid.adm = creativeConfig.expand(creativeInfo->adm, context);
 
 }
 

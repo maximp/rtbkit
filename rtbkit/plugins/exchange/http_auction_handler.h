@@ -99,7 +99,7 @@ struct HttpAuctionHandler
         table.
     */
     void doEvent(const char * eventName,
-                 StatEventType type = ET_COUNT,
+                 EventType type = ET_COUNT,
                  float value = 1.0,
                  const char * units = "",
                  std::initializer_list<int> extra = DefaultOutcomePercentiles);
@@ -129,7 +129,6 @@ struct HttpAuctionHandler
     virtual std::shared_ptr<BidRequest>
     parseBidRequest(const HttpHeader & header,
                     const std::string & payload);
-
 
     /** Return the available time for the bid request in milliseconds.  This
         method should not parse the bid request, as when shedding load

@@ -102,7 +102,7 @@ struct ExchangeConnector: public ServiceBase {
         if (prob < 0 || prob > 1)
             throw ML::Exception("invalid probability for "
                                 "setBidRequestProbability: "
-                                "%f is not between 0 and 1", prob);
+                                "%f is not between 0 and 1");
         this->acceptAuctionProbability = prob;
     }
 
@@ -231,33 +231,6 @@ struct ExchangeConnector: public ServiceBase {
     getCreativeCompatibility(const Creative & creative,
                              bool includeReasons) const;
 
-    /** Structure is used to determine if the bid is valid.
-    */
-    struct BidValidity {
-        BidValidity()
-            :isValidbid(true)
-        {
-        }
-
-        void setValidBid() {
-            isValidbid = true;
-        }
-
-        void setInvalidBid(const std::string &reason) {
-            isValidbid = false;
-            reason_ = reason;
-         }
-
-        std::string  reason_;
-        bool isValidbid;
-    };
-
-    /** Sets not valid bid if bid price is lower then the bidfloor price
-    */
-    virtual BidValidity
-    getBidValidity(const Bid  & bid, const  std::vector<AdSpot> & imp,
-                   int spotIndex) const;
-
 
     /*************************************************************************/
     /* FILTERING                                                             */
@@ -360,6 +333,17 @@ struct ExchangeConnector: public ServiceBase {
 
     /** plugin interface needs to be able to request the root name of the plugin library */
     static const std::string libNameSufix() {return "exchange";};
+
+    // FIXME: this is being kept just for compatibility reasons.
+    // we don't want to break compatibility now, although this interface does not make
+    // sense any longer  
+    // so any use of it should be considered deprecated
+
+    /** Register the given exchange factory. */
+    static void registerFactory(const std::string & exchange, Factory factory)
+    {
+      PluginInterface<ExchangeConnector>::registerPlugin(exchange, factory);
+    }
 
     /** Register the given exchange factory. */
     template<typename T>

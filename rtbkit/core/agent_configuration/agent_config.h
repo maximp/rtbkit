@@ -15,10 +15,8 @@
 #include <boost/regex/icu.hpp>
 #include "rtbkit/common/bid_request.h"
 #include "include_exclude.h"
-#include "fees.h"
 #include "rtbkit/common/account_key.h"
 #include "rtbkit/core/agent_configuration/latlonrad.h"
-#include "rtbkit/common/extension.h"
 
 namespace RTBKIT {
 
@@ -32,16 +30,9 @@ struct ExchangeConnector;
 /* CREATIVE                                                                  */
 /*****************************************************************************/
 
-/** Describes a creative that an agent has available.
-
-    A creative is a general-purpose entity that can represent either an image
-    or a video
- */
+/** Describes a creative that a agent has available. */
 
 struct Creative {
-
-    enum class Type { Image, Video };
-
     Creative(int width = 0, int height = 0, std::string name = "", int id = -1,
             const std::string dealId = "");
 
@@ -58,10 +49,6 @@ struct Creative {
     /// Purely for information (used internally)
     std::string name;
     int id;
-
-    /// Video creative information
-    int32_t duration;
-    int64_t bitrate;
 
     /// Configuration values; per provider
     /// eg: OpenRTB, ...
@@ -98,9 +85,6 @@ struct Creative {
     // Needed for PMP filter
     std::string dealId;
 
-    // Fees
-    shared_ptr<Fees> fees;
-
     struct SegmentInfo {
 
         SegmentInfo() : excludeIfNotPresent(false){}
@@ -125,24 +109,6 @@ struct Creative {
     /** Is this creative biddable on the given exchange and protocol version? */
     bool biddable(const std::string & exchange,
                   const std::string & protocolVersion) const;
-
-    /** Is this an image creative ? */
-    bool isImage() const;
-
-    /** Is this  a video creative ? */
-    bool isVideo() const;
-
-    static Creative image(int width, int height, std::string name = "", int id = -1, std::string dealId = "");
-    static Creative video(int width, int height, uint32_t duration, uint64_t bitrate,
-                std::string name = "", int id = -1, std::string dealId = "");
-
-    ExtensionPool extensions;
-
-private:
-    Type type;
-
-    std::string typeString() const;
-
 };
 
 
@@ -288,7 +254,7 @@ void fromJson(BidResultFormat & fmt, const Json::Value & j);
     a agent to the router to describe how the routes should be set up.
 */
 struct AgentConfig {
-    explicit AgentConfig(std::string name = "");
+    AgentConfig();
 
     static AgentConfig createFromJson(const Json::Value & json);
 
@@ -427,12 +393,6 @@ struct AgentConfig {
 
     /** Message formats */
     BidResultFormat winFormat, lossFormat, errorFormat;
-    //
-    Json::Value ext;
-
-    std::string name;
-
-    ExtensionPool extensions;
 };
 
 

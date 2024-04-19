@@ -46,8 +46,6 @@ struct MockExchangeConnector : public HttpExchangeConnector {
         getParam(parameters, bindHost, "bindHost");
         getParam(parameters, performNameLookup, "performNameLookup");
         getParam(parameters, backlog, "connectionBacklog");
-
-        configurePipeline(parameters["pipeline"]);
     }
 
     void start() {

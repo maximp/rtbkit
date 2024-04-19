@@ -5,6 +5,7 @@
    RTB router code.
 */
 
+#include <set>
 #include <atomic>
 #include "router.h"
 #include "soa/service/zmq_utils.h"
@@ -33,7 +34,6 @@
 #include "rtbkit/common/messages.h"
 #include "rtbkit/common/win_cost_model.h"
 #include "rtbkit/common/bidder_interface.h"
-#include "rtbkit/common/analytics.h"
 
 using namespace std;
 using namespace ML;
@@ -117,8 +117,7 @@ Router(ServiceBase & parent,
        bool logBids,
        Amount maxBidAmount,
        int secondsUntilSlowMode,
-       Amount slowModeAuthorizedMoneyLimit,
-       Seconds augmentationWindow)
+       Amount slowModeAuthorizedMoneyLimit)
     : ServiceBase(serviceName, parent),
       shutdown_(false),
       postAuctionEndpoint(*this),
@@ -143,6 +142,7 @@ Router(ServiceBase & parent,
       bridge(getZmqContext()),
       logAuctions(logAuctions),
       logBids(logBids),
+      logger(getZmqContext()),
       doDebug(false),
       disableAuctionProb(false),
       numAuctions(0), numBids(0), numNonEmptyBids(0),
@@ -154,8 +154,7 @@ Router(ServiceBase & parent,
       accumulatedBidMoneyInThisPeriod(0),
       monitorProviderClient(getZmqContext()),
       maxBidAmount(maxBidAmount),
-      slowModeTolerance(MonitorClient::DefaultTolerance),
-      augmentationWindow(augmentationWindow)
+      slowModeTolerance(MonitorClient::DefaultTolerance)
 {
     monitorProviderClient.addProvider(this);
 }
@@ -170,8 +169,7 @@ Router(std::shared_ptr<ServiceProxies> services,
        bool logBids,
        Amount maxBidAmount,
        int secondsUntilSlowMode,
-       Amount slowModeAuthorizedMoneyLimit,
-       Seconds augmentationWindow)
+       Amount slowModeAuthorizedMoneyLimit)
     : ServiceBase(serviceName, services),
       shutdown_(false),
       postAuctionEndpoint(*this),
@@ -196,6 +194,7 @@ Router(std::shared_ptr<ServiceProxies> services,
       bridge(getZmqContext()),
       logAuctions(logAuctions),
       logBids(logBids),
+      logger(getZmqContext()),
       doDebug(false),
       disableAuctionProb(false),
       numAuctions(0), numBids(0), numNonEmptyBids(0),
@@ -207,9 +206,7 @@ Router(std::shared_ptr<ServiceProxies> services,
       accumulatedBidMoneyInThisPeriod(0),
       monitorProviderClient(getZmqContext()),
       maxBidAmount(maxBidAmount),
-      slowModeTolerance(MonitorClient::DefaultTolerance),
-      augmentationWindow(augmentationWindow)
-
+      slowModeTolerance(MonitorClient::DefaultTolerance)
 {
     monitorProviderClient.addProvider(this);
 }
@@ -225,141 +222,9 @@ initBidderInterface(Json::Value const & json)
 
 void
 Router::
-initAnalyticsPublisher(const string & baseUrl, const int numConnections)
+initAnalytics(const string & baseUrl, const int numConnections)
 {
-    analyticsPublisher.init(baseUrl, numConnections);
-}
-
-void
-Router::
-initExchanges(const Json::Value & config) {
-    for (auto & exchange: config) {
-        initExchange(exchange);
-    }
-}
-
-void
-Router::
-initExchange(const std::string & type,
-              const Json::Value & config)
-{
-    auto exchange = ExchangeConnector::create(type, *this, type);
-    exchange->configure(config);
-
-    std::shared_ptr<ExchangeConnector> item(exchange.release());
-    addExchangeNoConnect(item);
-
-    exchangeBuffer.push(item);
-}
-
-void
-Router::
-initExchange(const Json::Value & exchangeConfig)
-{
-    std::string exchangeType = exchangeConfig["exchangeType"].asString();
-    initExchange(exchangeType, exchangeConfig);
-}
-
-void
-Router::
-initFilters(const Json::Value & config) {
-
-    if (config != Json::Value::null) {
-
-        if (config.type() != Json::objectValue)
-           throw Exception("Filter config json is not of map type");
-
-        Json::Value extraFilterLibs;
-        Json::Value filterDeactivate;
-        Json::Value filterActivate;
-
-        for (const std::string & field : config.getMemberNames()) {
-
-            if (field == "extraFilterLibs") {
-                extraFilterLibs = config[field];
-                if (extraFilterLibs != Json::Value::null) {
-                    if (!extraFilterLibs.isArray()) {
-                        throw Exception("Filter libs must be an array");
-                    }
-                    for(size_t i=0; i<extraFilterLibs.size(); i++){
-                        std::string file=extraFilterLibs[i].asString();
-                        void * handle = dlopen(file.c_str(),RTLD_NOW);
-                        if (!handle) {
-                            std::cerr << dlerror() << std::endl;
-                            throw ML::Exception("couldn't load library from %s", file.c_str());
-                        }
-                    }
-                }
-            }
-            else if (field == "filter-deactivate") {
-                filterDeactivate = config[field];
-                if ( (filterDeactivate != Json::Value::null) && (!filterDeactivate.isArray()) ) {
-                    throw Exception("Filter-deactivate must be an array");
-                }
-            }
-            else if (field == "filter-activate") {
-                filterActivate = config[field];
-                if ( (filterActivate != Json::Value::null) && (!filterActivate.isArray()) ) {
-                    throw Exception("Filter-activate must be an array");
-                }
-            }
-            else
-                throw Exception("Unknown field " + field + " in filter config file");
-        }
-
-        if (filterActivate != Json::Value::null) {
-            if (filterDeactivate != Json::Value::null) {
-                Json::Value filtersToLoad(Json::arrayValue);
-                for (unsigned i=0; i<filterActivate.size(); ++i) {
-                    bool addFilter = true;
-                    for (unsigned j=0; j<filterDeactivate.size(); ++j) {
-                        if (filterActivate[i] == filterDeactivate[j]) {
-                            addFilter = false;
-                            break;
-                        }
-                    }
-                    if (addFilter) {
-                        filtersToLoad.append(filterActivate[i]);
-                    }
-                }
-                filters.initWithFiltersFromJson(filtersToLoad);
-            } else {
-                filters.initWithFiltersFromJson(filterActivate);
-            }
-        } else {
-            if (filterDeactivate != Json::Value::null) {
-                Json::Value filtersToLoad(Json::arrayValue);
-                for (const std::string & ele: PluginInterface<FilterBase>::getNames()) {
-                    bool addFilter = true;
-                    for (unsigned j=0; j<filterDeactivate.size(); ++j) {
-                        if (filterDeactivate[j] == ele) {
-                            addFilter = false;
-                            break;
-                        }
-                    }
-                    if (addFilter) {
-                        filtersToLoad.append(ele);
-                    }
-                }
-                filters.initWithFiltersFromJson(filtersToLoad);
-            } else {
-                filters.initWithDefaultFilters();
-            }
-        }
-
-    } else {
-        filters.initWithDefaultFilters();
-    }
-}
-
-void
-Router::
-initAnalytics(const Json::Value & config)
-{
-    std::string pluginName = (config == Json::Value::null) ? "zmq" : config["pluginName"].asString();
-
-    Analytics::Factory factory = PluginInterface<Analytics>::getPlugin(pluginName);
-    analytics.reset(factory(serviceName(), getServices()));
+    analytics.init(baseUrl, numConnections);
 }
 
 void
@@ -371,6 +236,7 @@ init()
     registerServiceProvider(serviceName(), { "rtbRequestRouter" });
 
     filters.init(this);
+    filters.initWithDefaultFilters();
 
     banker.reset(new NullBanker());
 
@@ -382,7 +248,7 @@ init()
 
     augmentationLoop.init();
 
-    if (analytics) analytics->init();
+    logger.init(getServices()->config, serviceName() + "/logger");
 
     bridge.agents.init(getServices()->config, serviceName() + "/agents");
     bridge.agents.clientMessageHandler
@@ -415,10 +281,11 @@ init()
 
     loopMonitor.init();
     loopMonitor.addMessageLoop("augmentationLoop", &augmentationLoop);
+    loopMonitor.addMessageLoop("logger", &logger);
     loopMonitor.addMessageLoop("configListener", &configListener);
     loopMonitor.addMessageLoop("monitorClient", &monitorClient);
     loopMonitor.addMessageLoop("monitorProviderClient", &monitorProviderClient);
-    if (analyticsPublisher.initialized) loopMonitor.addMessageLoop("analyticsPublisher", &analyticsPublisher);
+    if (analytics.initialized) loopMonitor.addMessageLoop("analytics", &analytics);
 
     loopMonitor.onLoadChange = [=] (double)
         {
@@ -460,7 +327,7 @@ void
 Router::
 bindTcp()
 {
-    if (analytics) analytics->bindTcp();
+    logger.bindTcp(getServices()->ports->getRange("logs"));
     bridge.agents.bindTcp(getServices()->ports->getRange("router"));
 }
 
@@ -500,14 +367,6 @@ unsafeDisableMonitor()
 
 void
 Router::
-unsafeDisableSlowMode()
-{
-    monitorClient.testMode = true;
-    monitorClient.testResponse = true;
-}
-
-void
-Router::
 unsafeDisableAuctionProbability()
 {
     disableAuctionProb = true;
@@ -531,14 +390,9 @@ start(boost::function<void ()> onStop)
             if (onStop) onStop();
         };
 
-    for ( auto & exchange : exchanges) {
-        exchange->start();
-        connectExchange(*exchange);
-    }
-
     bidder->start();
-    if (analytics) analytics->start();
-    analyticsPublisher.start();
+    logger.start();
+    analytics.start();
     augmentationLoop.start();
     runThread.reset(new boost::thread(runfn));
 
@@ -775,7 +629,12 @@ run()
 
             std::pair<std::string, std::shared_ptr<const AgentConfig> > config;
             while (configBuffer.tryPop(config)) {
-                doConfig(config.first, config.second);
+                if (!config.second) {
+                    cerr << "agent " << config.first << " lost configuration" << endl;
+                }
+                else {
+                    doConfig(config.first, config.second);
+                }
             }
 
             recordTime("doConfig", atStart);
@@ -804,8 +663,6 @@ run()
                      << ": " << exc.what() << endl;
                 logRouterError("handleAgentMessage", exc.what(),
                                message);
-
-                if (analytics) analytics->logRouterErrorMessage("handleAgentMessage", exc.what(), message);
             }
 
             recordTime(message.at(1), atStart);
@@ -841,8 +698,15 @@ run()
 
         if (now - last_check > 10.0) {
             logUsageMetrics(10.0);
-            if (analytics) analytics->logUsageMessage(*this, 10.0);
-            if (analytics) analytics->logMarkMessage(*this,last_check);
+
+            logMessage("MARK",
+                       Date::fromSecondsSinceEpoch(last_check).print(),
+                       format("active: %zd augmenting, %zd inFlight, "
+                              "%zd agents",
+                              augmentationLoop.numAugmenting(),
+                              inFlight.size(),
+                              agents.size()));
+
             dutyCycleCurrent.ending = Date::now();
             dutyCycleHistory.push_back(dutyCycleCurrent);
             dutyCycleCurrent.clear();
@@ -920,7 +784,7 @@ shutdown()
         cleanupThread->join();
     cleanupThread.reset();
 
-    if (analytics) analytics->shutdown();
+    logger.shutdown();
     banker.reset();
 
     monitorClient.shutdown();
@@ -1077,8 +941,14 @@ logUsageMetrics(double period)
         }
     }
 
+    set<AccountKey> agentAccounts;
     for (const auto & item : agents) {
         auto & info = item.second;
+        const AccountKey & account = info.config->account;
+        if (!agentAccounts.insert(account).second) {
+            continue;
+        }
+
         auto & last = lastAgentUsageMetrics[item.first];
 
         AgentUsageMetrics newMetrics(info.stats->intoFilters,
@@ -1088,6 +958,14 @@ logUsageMetrics(double period)
                                      info.stats->bids);
         AgentUsageMetrics delta = newMetrics - last;
 
+        logMessage("USAGE", "AGENT", p, item.first,
+                   info.config->account.toString(),
+                   delta.intoFilters,
+                   delta.passedStaticFilters,
+                   delta.passedDynamicFilters,
+                   delta.auctions,
+                   delta.bids,
+                   info.config->bidProbability);
         logMessageToAnalytics("USAGE", "AGENT", p, item.first,
                    info.config->account.toString(),
                    delta.intoFilters,
@@ -1118,6 +996,13 @@ logUsageMetrics(double period)
 
         RouterUsageMetrics delta = newMetrics - lastRouterUsageMetrics;
 
+        logMessage("USAGE", "ROUTER", p,
+                   delta.numRequests,
+                   delta.numAuctions,
+                   delta.numNoPotentialBidders,
+                   delta.numBids,
+                   delta.numAuctionsWithBid,
+                   acceptAuctionProbability / numExchanges);
         logMessageToAnalytics("USAGE", "ROUTER", p,
                    delta.numRequests,
                    delta.numAuctions,
@@ -1268,7 +1153,7 @@ checkExpiredAuctions()
                         AgentInfo & info = this->agents[agent];
                         ++info.stats->tooLate;
 
-                        this->recordHit("accounts.%s.EXPIRED",
+                        this->recordHit("accounts.%s.droppedBids",
                                         info.config->account.toString('.'));
 
                         bidder->sendBidDroppedMessage(info.config, agent, auctionInfo.auction);
@@ -1323,7 +1208,7 @@ returnErrorResponse(const std::vector<std::string> & message,
 {
     using namespace std;
     if (message.empty()) return;
-    if (analytics) analytics->logErrorMessage(error,message);
+    logMessage("ERROR", error, message);
     logMessageToAnalytics("ERROR", error, message);
     const auto& agent = message[0];
     AgentInfo & info = this->agents[agent];
@@ -1336,43 +1221,6 @@ returnInvalidBid(
         const std::string &agent, const std::string &bidData,
         const std::shared_ptr<Auction> &auction,
         const char *reason, const char *message, ...) {
-
-    auto& agentInfo = agents[agent];
-    const auto& agentConfig = agentInfo.config;
-    this->recordHit("bidErrors.%s", reason);
-    this->recordHit("accounts.%s.bidErrors.total",
-                    agentConfig->account.toString('.'));
-    this->recordHit("accounts.%s.bidErrors.%s",
-                    agentConfig->account.toString('.'),
-                    reason);
-
-    ++agentInfo.stats->invalid;
-
-    va_list ap;
-    va_start(ap, message);
-    string formatted;
-    try {
-        formatted = vformat(message, ap);
-    } catch (...) {
-        va_end(ap);
-        throw;
-    }
-    va_end(ap);
-
-    cerr << "invalid bid for agent " << agent << ": "
-         << formatted << endl;
-    cerr << bidData << endl;
-
-    logMessageToAnalytics("INVALID", agentConfig, agent, formatted, auction);
-    bidder->sendBidInvalidMessage(agentConfig, agent, formatted, auction);
-}
-
-void
-Router::
-returnInvalidBid(
-        const std::string &agent, const std::string &bidData,
-        const std::shared_ptr<Auction> &auction,
-        const std::string &reason, const char *message, ...) {
 
     auto& agentInfo = agents[agent];
     const auto& agentConfig = agentInfo.config;
@@ -1469,6 +1317,8 @@ augmentAuction(const std::shared_ptr<AugmentationInfo> & info)
         return;
     }
 
+    double augmentationWindow = 0.005; // 5ms available to augment
+
     auto onDoneAugmenting = [=] (const std::shared_ptr<AugmentationInfo> & info)
         {
             info->auction->doneAugmenting = Date::now();
@@ -1483,7 +1333,7 @@ augmentAuction(const std::shared_ptr<AugmentationInfo> & info)
             wakeupMainLoop.signal();
         };
 
-    augmentationLoop.augment(info, Date::now().plusSeconds(augmentationWindow.count()),
+    augmentationLoop.augment(info, Date::now().plusSeconds(augmentationWindow),
                              onDoneAugmenting);
 }
 
@@ -2080,8 +1930,6 @@ doBidImpl(const BidMessage &message, const std::vector<std::string> &originalMes
 
     auctionInfo.auction->addDataSources(bids.dataSources);
 
-    this->recordLevel(bids.size(), "bidsPerBidRequest");
-
     for (int i = 0; i < bids.size(); ++i) {
 
         Bid bid = bids[i];
@@ -2127,14 +1975,6 @@ doBidImpl(const BidMessage &message, const std::vector<std::string> &originalMes
             }
         }
 
-     auto getbid = auctionInfo.auction->exchangeConnector->getBidValidity(bid, imp, spotIndex);
-
-        if (!getbid.isValidbid) {
-            returnInvalidBid(agent, bidsString, auctionInfo.auction,
-                "noBid",
-                getbid.reason_.c_str());
-            continue;
-        }
         const Creative & creative = config.creatives.at(bid.creativeIndex);
 
         if (!creative.compatible(imp[spotIndex])) {
@@ -2142,13 +1982,13 @@ doBidImpl(const BidMessage &message, const std::vector<std::string> &originalMes
             cerr << "creative not compatible with spot: " << endl;
             cerr << "auction: " << auctionInfo.auction->requestStr
                 << endl;
-            cerr << "config: " << config.toJson().toStringNoNewLine() << endl;
+            cerr << "config: " << config.toJson() << endl;
             cerr << "bid: " << bidsString << endl;
-            cerr << "spot: " << imp[i].toJson().toStringNoNewLine() << endl;
+            cerr << "spot: " << imp[i].toJson() << endl;
             cerr << "spot num: " << spotIndex << endl;
             cerr << "bid num: " << i << endl;
             cerr << "creative num: " << bid.creativeIndex << endl;
-            cerr << "creative: " << creative.toJson().toStringNoNewLine() << endl;
+            cerr << "creative: " << creative.toJson() << endl;
 #endif
             returnInvalidBid(agent, bidsString, auctionInfo.auction,
                     "creativeNotCompatibleWithSpot",
@@ -2196,7 +2036,6 @@ doBidImpl(const BidMessage &message, const std::vector<std::string> &originalMes
                     slowModePeriodicSpentReached = true;
                     bidder->sendBidDroppedMessage(agentConfig, agent, auctionInfo.auction);
                     recordHit("slowMode.droppedBid");
-                    recordHit("accounts.%s.IGNORED", config.account.toString('.'));
                 continue;
                 }
             }
@@ -2212,9 +2051,9 @@ doBidImpl(const BidMessage &message, const std::vector<std::string> &originalMes
 
             bidder->sendNoBudgetMessage(agentConfig, agent, auctionInfo.auction);
 
-            if (analytics) analytics->logNoBudgetMessage(agent, auctionId, bidsString, message.meta);
+            this->logMessage("NOBUDGET", agent, auctionId,
+                    bidsString, message.meta);
             this->logMessageToAnalytics("NOBUDGET", agent, auctionId);
-            recordHit("accounts.%s.NOBUDGET", config.account.toString('.'));
             continue;
         }
         
@@ -2270,12 +2109,12 @@ doBidImpl(const BidMessage &message, const std::vector<std::string> &originalMes
         switch (localResult.val) {
         case Auction::WinLoss::PENDING: {
             ++info.stats->bids;
-            info.stats->totalBid += price;
+            info.stats->totalBid += bid.price;
             break; // response will be sent later once local winning bid known
         }
         case Auction::WinLoss::LOSS:
             ++info.stats->bids;
-            info.stats->totalBid += price;
+            info.stats->totalBid += bid.price;
             // fall through
         case Auction::WinLoss::TOOLATE:
         case Auction::WinLoss::INVALID: {
@@ -2290,24 +2129,21 @@ doBidImpl(const BidMessage &message, const std::vector<std::string> &originalMes
             switch (localResult.val) {
             case Auction::WinLoss::LOSS:
                 status = BS_LOSS;
-                bidder->sendLossMessage(agentConfig, agent, auctionId.toString ());
-                recordHit("accounts.%s.LOCAL_LOSS", config.account.toString('.'));
+                bidder->sendLossMessage(agentConfig, agent, auctionId.toString());
                 break;
             case Auction::WinLoss::TOOLATE:
                 status = BS_TOOLATE;
                 bidder->sendTooLateMessage(agentConfig, agent, auctionInfo.auction);
-                recordHit("accounts.%s.TOOLATE", config.account.toString('.'));
-                continue;
+                break;
             case Auction::WinLoss::INVALID:
                 status = BS_INVALID;
                 bidder->sendBidInvalidMessage(agentConfig, agent, msg, auctionInfo.auction);
-                recordHit("accounts.%s.INVALID", config.account.toString('.'));
                 break;
             default:
                 throw ML::Exception("logic error");
             }
 
-            if (analytics) analytics->logMessage(msg, agent, auctionId, bidsString, message.meta);
+            this->logMessage(msg, agent, auctionId, bidsString, message.meta);
             this->logMessageToAnalytics(msg, agent, auctionId, bidsString);
             continue;
         }
@@ -2322,10 +2158,12 @@ doBidImpl(const BidMessage &message, const std::vector<std::string> &originalMes
 
     }
 
+    this->recordCount(info.stats->bids, "bidsPerBidRequest");
+
     if (numValidBids > 0) {
-        if (logBids) {
-            if (analytics) analytics->logBidMessage(agent, auctionId, bidsString, message.meta);
-        }
+        if (logBids)
+            // Send BID to logger
+            logMessage("BID", agent, auctionId, bidsString, message.meta);
         logMessageToAnalytics("BID", agent, auctionId, bidsString);
         ML::atomic_add(numNonEmptyBids, 1);
     }
@@ -2357,7 +2195,6 @@ doBidImpl(const BidMessage &message, const std::vector<std::string> &originalMes
         debugAuction(auctionId, "FINISH", originalMessage);
         if (!auctionInfo.auction->finish()) {
             debugAuction(auctionId, "FINISH TOO LATE", originalMessage);
-            recordHit("accounts.%s.FINISH_TOOLATE", agentConfig->account.toString('.'));
         }
         inFlight.erase(auctionId);
         //cerr << "couldn't finish auction " << auctionInfo.auction->id
@@ -2476,14 +2313,12 @@ doSubmitted(std::shared_ptr<Auction> auction)
                 ++info.stats->losses;
                 msg = "LOSS";
                 bidder->sendLossMessage(agentConfig, response.agent, auctionId.toString());
-                recordHit("accounts.%s.LOCAL_LOSS", agentConfig->account.toString('.'));
                 break;
             case Auction::WinLoss::TOOLATE:
                 bidStatus = BS_TOOLATE;
                 ++info.stats->tooLate;
                 msg = "TOOLATE";
                 bidder->sendTooLateMessage(agentConfig, response.agent, auction);
-                recordHit("accounts.%s.TOOLATE", agentConfig->account.toString('.'));
                 break;
             default:
                 throwException("doSubmitted.unknownStatus",
@@ -2557,9 +2392,9 @@ onNewAuction(std::shared_ptr<Auction> auction)
 
     //cerr << "AUCTION GOT THROUGH" << endl;
 
-    if (logAuctions) {
-        if (analytics) analytics->logAuctionMessage(auction->id, auction->requestStr);
-    }
+    if (logAuctions)
+        // Send AUCTION to logger
+        logMessage("AUCTION", auction->id, auction->requestStr);
     logMessageToAnalytics("AUCTION", auction->id);
 
     const BidRequest & request = *auction->request;
@@ -2659,46 +2494,34 @@ doConfig(const std::string & agent,
          std::shared_ptr<const AgentConfig> config)
 {
     RouterProfiler profiler(dutyCycleCurrent.nsConfig);
+    //const string fName = "Router::doConfig:";
+    logMessage("CONFIG", agent, boost::trim_copy(config->toJson().toString()));
+    logMessageToAnalytics("CONFIG", agent, boost::trim_copy(config->toJson().toString()));
 
-    if (!config) {
-        auto it = agents.find(agent);
-        // It might happen that we don't find the agent if for example we received
-        // an empty configuration because the agent crashed prior to sending its initial
-        // configuration to the ACS.
-        if (it != std::end(agents)) {
-            cerr << "agent " << agent << " lost configuration" << endl;
-            filters.removeConfig(agent);
-            agents.erase(it);
-        }
-    } else {
-        AgentInfo & info = agents[agent];
-        if (analytics) analytics->logConfigMessage(agent, boost::trim_copy(config->toJson().toString()));
-        logMessageToAnalytics("CONFIG", agent, boost::trim_copy(config->toJson().toString()));
+    // TODO: no need for this...
+    auto newConfig = std::make_shared<AgentConfig>(*config);
+    if (newConfig->roundRobinGroup == "")
+        newConfig->roundRobinGroup = agent;
 
-        // TODO: no need for this...
-        auto newConfig = std::make_shared<AgentConfig>(*config);
-        if (newConfig->roundRobinGroup == "")
-            newConfig->roundRobinGroup = agent;
+    AgentInfo & info = agents[agent];
 
-
-        if (info.configured) {
-            unconfigure(agent, *info.config);
-            info.configured = false;
-        }
-
-        info.config = newConfig;
-        //cerr << "configured " << agent << " strategy : " << info.config->strategy << " campaign "
-        //     <<  info.config->campaign << endl;
-
-        string bidRequestFormat = "jsonRaw";
-        info.setBidRequestFormat(bidRequestFormat);
-
-        configure(agent, *newConfig);
-        info.configured = true;
-        bidder->sendMessage(config, agent, "GOTCONFIG");
-
-        info.filterIndex = filters.addConfig(agent, info);
+    if (info.configured) {
+        unconfigure(agent, *info.config);
+        info.configured = false;
     }
+
+    info.config = newConfig;
+    //cerr << "configured " << agent << " strategy : " << info.config->strategy << " campaign "
+    //     <<  info.config->campaign << endl;
+
+    string bidRequestFormat = "jsonRaw";
+    info.setBidRequestFormat(bidRequestFormat);
+
+    configure(agent, *newConfig);
+    info.configured = true;
+    bidder->sendMessage(config, agent, "GOTCONFIG");
+
+    info.filterIndex = filters.addConfig(agent, info);
 
     // Broadcast that we have a new agent or it has a new configuration
     updateAllAgents();
@@ -2920,7 +2743,7 @@ void
 Router::
 submitToPostAuctionService(std::shared_ptr<Auction> auction,
                            Id adSpotId,
-                           Auction::Response & bid)
+                           const Auction::Response & bid)
 {
 #if 0
     static std::mutex lock;
@@ -2938,8 +2761,6 @@ submitToPostAuctionService(std::shared_ptr<Auction> auction,
 
     banker->detachBid(bid.account, auctionKey);
 
-    recordHit("accounts.%s.submitted", bid.account.toString('.'));
-
     if (connectPostAuctionLoop) {
         auto event = std::make_shared<SubmittedAuctionEvent>();
         event->auctionId = auction->id;
@@ -2949,8 +2770,6 @@ submitToPostAuctionService(std::shared_ptr<Auction> auction,
         event->bidRequest(auction->request);
         event->bidRequestStr = auction->requestStr;
         event->bidRequestStrFormat = auction->requestStrFormat ;
-        // apply wcm for PAL.
-        bid.price.maxPrice = bid.wcm.evaluate(bid.bidData[0], bid.price.maxPrice);
         event->bidResponse = bid;
 
         postAuctionEndpoint.sendAuction(event);
@@ -2981,7 +2800,6 @@ throwException(const std::string & key, const std::string & fmt, ...)
     }
 
     logRouterError("exception", key, message);
-    if (analytics) analytics->logRouterErrorMessage("exception", key, std::vector<std::string>{message});
     throw ML::Exception("Router Exception: " + key + ": " + message);
 }
 
@@ -3071,6 +2889,30 @@ getProviderIndicators()
         + "Banker: " + (bankerOk ? "OK": "ERROR");
 
     return ind;
+}
+
+void
+Router::
+startExchange(const std::string & type,
+              const Json::Value & config)
+{
+    auto exchange = ExchangeConnector::create(type, *this, type);
+    exchange->configure(config);
+    exchange->start();
+
+    std::shared_ptr<ExchangeConnector> item(exchange.release());
+    addExchange(item);
+
+    exchangeBuffer.push(item);
+    filters.initWithDefaultFilters();
+}
+
+void
+Router::
+startExchange(const Json::Value & exchangeConfig)
+{
+    std::string exchangeType = exchangeConfig["exchangeType"].asString();
+    startExchange(exchangeType, exchangeConfig);
 }
 
 

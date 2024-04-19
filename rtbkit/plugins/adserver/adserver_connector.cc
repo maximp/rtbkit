@@ -7,11 +7,10 @@
 */
 
 
-#include <dlfcn.h>
-
 #include "adserver_connector.h"
+
 #include "rtbkit/common/auction_events.h"
-#include "rtbkit/common/analytics.h"
+#include <dlfcn.h>
 
 using namespace std;
 
@@ -37,21 +36,6 @@ AdServerConnector::
 
 void
 AdServerConnector::
-initAnalytics(const Json::Value & config)
-{
-    std::string pluginName = (config == Json::Value::null) ? "zmq" : config["pluginName"].asString();
-
-    Analytics::Factory factory = PluginInterface<Analytics>::getPlugin(pluginName);
-    analytics.reset(factory(serviceName(), getServices()));
-    
-    // And initialize the generic publisher on a predefined range of ports to try avoiding that
-    // collision between different kind of service occurs.
-    analytics->init();
-    analytics->bindTcp("adServer.logger");
-}
-
-void
-AdServerConnector::
 init(shared_ptr<ConfigurationService> config)
 {
     shared_ptr<ServiceProxies> services = getServices();
@@ -68,14 +52,12 @@ start()
 {
     startTime_ = Date::now();
     recordHit("up");
-    if (analytics) analytics->start();
 }
 
 void
 AdServerConnector::
 shutdown()
 {
-    if (analytics) analytics->shutdown();
 }
 
 void

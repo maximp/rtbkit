@@ -49,7 +49,7 @@ struct OpenRTBBidRequestParser
 
     struct OpenRTBParsingContext {
         std::unique_ptr<RTBKIT::BidRequest> br;
-        AdSpot spot;
+        std::unique_ptr<AdSpot> spot;
     } ctx;
     
     virtual ~OpenRTBBidRequestParser(){};

@@ -11,8 +11,7 @@
 #include <sstream>
 #include <unordered_set>
 
-#include "soa/service/logs.h"
-#include "rtbkit/plugins/exchange/creative_configuration.h"
+#include "rtbkit/common/creative_configuration.h"
 #include "rtbkit/plugins/exchange/http_exchange_connector.h"
 
 namespace RTBKIT {
@@ -63,10 +62,7 @@ struct AdXExchangeConnector: public HttpExchangeConnector {
         return exchangeNameString();
     }
 
-    void doEvent(const char * eventName,
-                 StatEventType type = Datacratic::ET_COUNT,
-                 float value = 1.0,
-                 const char * units = "");
+    void init();
 
     virtual std::shared_ptr<BidRequest>
     parseBidRequest(HttpAuctionHandler & connection,
@@ -109,10 +105,6 @@ struct AdXExchangeConnector: public HttpExchangeConnector {
         std::unordered_set<int32_t> attribute_;     ///< Attribute
         std::unordered_set<int32_t> 
                         restricted_category_;       ///< Restricted category
-
-        std::unordered_set<int32_t>
-                         product_category_;         ///< Product category
-        std::string nurl_;                  ///< VAST url
     };
 
     virtual bool
@@ -126,9 +118,7 @@ struct AdXExchangeConnector: public HttpExchangeConnector {
 
 private:
 
-    void init();
-    
-    typedef TypedCreativeConfiguration<CreativeInfo> AdxCreativeConfiguration;
+    typedef CreativeConfiguration<CreativeInfo> AdxCreativeConfiguration;
     AdxCreativeConfiguration configuration_;
 
     /**
@@ -140,10 +130,6 @@ private:
     static double rtt_ms()       {
         return 50;
     }
-
-    static Logging::Category print;
-    static Logging::Category error;
-    static Logging::Category trace;
 };
 
 

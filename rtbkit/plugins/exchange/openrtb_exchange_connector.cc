@@ -17,7 +17,6 @@
 #include "jml/utils/file_functions.h"
 #include "jml/arch/info.h"
 #include "jml/utils/rng.h"
-#include "jml/arch/exception_handler.h" // JML_TRACE_EXCEPTIONS
 
 using namespace Datacratic;
 
@@ -152,12 +151,10 @@ parseBidRequest(HttpAuctionHandler & connection,
     // Parse the bid request
     std::shared_ptr<BidRequest> result;
     try {
-        JML_TRACE_EXCEPTIONS(!disableExceptionPrinting);
         ML::Parse_Context context("Bid Request", payload.c_str(), payload.size());
         result.reset(OpenRTBBidRequestParser::openRTBBidRequestParserFactory(openRtbVersion)->parseBidRequest(context,
                                                                                               exchangeName(),
                                                                                               exchangeName()));
-        result->protocolVersion = openRtbVersion;
     }
     catch(ML::Exception const & e) {
         this->recordHit("error.parsingBidRequest");
@@ -292,7 +289,7 @@ setSeatBid(Auction const & auction,
     // Put in the variable parts
     auto & b = seatBid.bid.back();
     b.cid = Id(resp.agentConfig->externalId);
-    b.crid = Id(std::to_string(resp.creativeId));
+    b.crid = Id(resp.creativeId);
     b.id = Id(auction.id, auction.request->imp[0].id);
     b.impid = auction.request->imp[spotNum].id;
     b.price.val = getAmountIn<CPM>(resp.price.maxPrice);

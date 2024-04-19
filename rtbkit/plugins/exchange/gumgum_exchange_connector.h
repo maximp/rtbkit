@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "rtbkit/plugins/exchange/creative_configuration.h"
 #include "rtbkit/plugins/exchange/http_exchange_connector.h"
 
 namespace RTBKIT {
@@ -67,12 +66,6 @@ struct GumgumExchangeConnector: public HttpExchangeConnector {
         std::string adm;        ///< Actual XHTML ad markup
         std::string nurl;       ///< Win notice URL
     };
-
-private:
-    void init();
-
-    typedef TypedCreativeConfiguration<CreativeInfo> GumgumCreativeConfiguration;
-    GumgumCreativeConfiguration configuration_;
 };
 
 

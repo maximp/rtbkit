@@ -87,7 +87,7 @@ struct Bid
     //extra data come with this bid
     Json::Value ext;
 
-    bool isNullBid() const { return price.isZero() || price.isNegative(); }
+    bool isNullBid() const { return price.isZero(); }
 
     void bid(int creativeIndex, Amount price, double priority = 0.0);
 

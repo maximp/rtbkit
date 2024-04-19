@@ -5,8 +5,6 @@
  **/
 
 
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include "jml/utils/exc_assert.h"
 #include "mongo_temporary_server.h"
 
@@ -16,7 +14,7 @@ namespace fs = boost::filesystem;
 using namespace Datacratic;
 
 MongoTemporaryServer::
-MongoTemporaryServer(const string & uniquePath, const int portNum)
+MongoTemporaryServer(const string & uniquePath)
     : state(Inactive), uniquePath_(uniquePath)
 {
     static int index(0);
@@ -28,31 +26,6 @@ MongoTemporaryServer(const string & uniquePath, const int portNum)
                                  tmpDir.get(), getpid(), index);
         cerr << ("starting mongo temporary server under unique path "
                  + uniquePath_ + "\n");
-    }
-
-    if (portNum == 0) {
-        int freePort = 0;
-        for (int i = 0; i < 100; ++ i) {
-            struct sockaddr_in addr;
-            addr.sin_family = AF_INET;
-            auto sockfd = socket(AF_INET, SOCK_STREAM, 0);
-            freePort = rand() % 15000 + 5000; // range 15000 - 20000
-            addr.sin_port = htons(freePort);
-            addr.sin_addr.s_addr = INADDR_ANY;
-            int res = ::bind(sockfd, (struct sockaddr *) &addr, sizeof(addr));
-            if (res == 0) {
-                close(sockfd);
-                break;
-            }
-            freePort = 0;
-        }
-        if (freePort == 0) {
-            throw ML::Exception("Failed to find free port");
-        }
-        this->portNum = freePort;
-    }
-    else {
-        this->portNum = portNum;
     }
 
     start();
@@ -152,24 +125,17 @@ start()
     loop_.addSource("runner", runner_);
     loop_.start();
 
-    auto onTerminate = [&] (const RunResult & result) {
-    };
     runner_.run({"/usr/bin/mongod",
-                 "--bind_ip", "localhost", "--port", to_string(portNum),
+                 "--bind_ip", "localhost", "--port", "28356",
                  "--logpath", logfile_, "--dbpath", uniquePath_,
                  "--unixSocketPrefix", socketPath_, "--nojournal"},
-                onTerminate, nullptr, stdOutSink);
+                nullptr, nullptr, stdOutSink);
     // connect to the socket to make sure everything is working fine
     testConnection();
-    string payload("db.createUser({user: 'testuser', pwd: 'testpw',"
-                                   "roles: ['userAdmin', 'dbAdmin']})");
-    RunResult runRes = execute({"/usr/bin/mongo",
-                                "localhost:" + to_string(portNum)},
-                               nullptr, nullptr, payload);
+    string payload("db.addUser('testuser','testpw',true)");
+    RunResult runRes = execute({"/usr/bin/mongo", "localhost:28356"},
+                            nullptr, nullptr, payload);
     ExcAssertEqual(runRes.processStatus(), 0);
-    execute({"/usr/bin/mongo", "localhost:" + to_string(portNum)},
-                               nullptr, nullptr, "db.getUsers()");
-
     state = Running;
 }
 

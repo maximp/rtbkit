@@ -69,9 +69,8 @@ ZookeeperCallbackManager::popCallback(uintptr_t id)
     auto found = callbacks_.find(id);
     if( found != callbacks_.end())
     {
-        auto cb = found->second.callback;
         callbacks_.erase(id);
-        return cb;
+        return found->second.callback;
     }
     return nullptr;
 }

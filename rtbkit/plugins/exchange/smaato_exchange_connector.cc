@@ -14,6 +14,7 @@
 #include <boost/any.hpp>
 #include <boost/lexical_cast.hpp>
 #include "jml/utils/file_functions.h"
+
  
 using namespace std;
 using namespace Datacratic;
@@ -33,29 +34,17 @@ std::string SmaatoExchangeConnector::nobid = "nobid";
 
 SmaatoExchangeConnector::
 SmaatoExchangeConnector(ServiceBase & owner, const std::string & name)
-    : OpenRTBExchangeConnector(owner, name),
-      configuration_("smaato")
-{
+    : OpenRTBExchangeConnector(owner, name) {
     this->auctionResource = "/auctions";
     this->auctionVerb = "POST";
-    init();
 }
 
 SmaatoExchangeConnector::
 SmaatoExchangeConnector(const std::string & name,
                        std::shared_ptr<ServiceProxies> proxies)
-    : OpenRTBExchangeConnector(name, proxies),
-      configuration_("smaato")
-{
+    : OpenRTBExchangeConnector(name, proxies) {
     this->auctionResource = "/auctions";
     this->auctionVerb = "POST";
-    init();
-}
-
-void
-SmaatoExchangeConnector::
-init()
-{
 }
  
 std::shared_ptr<BidRequest>

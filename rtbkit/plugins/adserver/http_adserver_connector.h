@@ -45,8 +45,6 @@ struct HttpAdServerConnectionHandler
     HttpAdServerConnectionHandler(HttpAdServerHttpEndpoint & endpoint,
                                   const HttpAdServerRequestCb & requestCb);
 
-    virtual void handleUnknownHeader(const HttpHeader& header);
-
     virtual void handleJson(const HttpHeader & header,
                             const Json::Value & json,
                             const std::string & jsonStr);
@@ -77,12 +75,12 @@ struct HttpAdServerHttpEndpoint : public Datacratic::HttpEndpoint {
 
     /* carbon logging */
     typedef std::function<void (const char * eventName,
-                                StatEventType,
+                                EventType,
                                 float,
                                 std::initializer_list<int>)> OnEvent;
     OnEvent onEvent;
 
-    void doEvent(const char * eventName, StatEventType type = ET_COUNT,
+    void doEvent(const char * eventName, EventType type = ET_COUNT,
                  float value = 1.0, const char * units = "",
                  std::initializer_list<int> extra = DefaultOutcomePercentiles)
       const
@@ -120,8 +118,6 @@ struct HttpAdServerConnector : public AdServerConnector {
     void bindTcp();
 
     void start();
-
-    std::vector<int> ports() const;
 
 private:
     std::vector<HttpAdServerHttpEndpoint> endpoints_;

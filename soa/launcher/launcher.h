@@ -37,7 +37,7 @@ struct Launcher
 {
     struct Task
     {
-        Task() : pid(-1), log(false), delay(45.0), once(false) {
+        Task() : pid(-1), log(false), delay(45.0) {
         }
 
         std::string const & getName() const {
@@ -52,10 +52,8 @@ struct Launcher
         }
 
         void restart(std::string const & node) {
-            if (!once) {
-                stop();
-                start(node);
-            }
+            stop();
+            start(node);
         }
 
         void start(std::string const & node) {
@@ -152,9 +150,6 @@ struct Launcher
                 else if(i.memberName() == "delay") {
                     result.delay = i->asDouble();
                 }
-                else if(i.memberName() == "once") {
-                    result.once = i->asBool();
-                }
                 else if(i.memberName() == "arg") {
                     auto & json = *i;
                     if(!json.empty() && !json.isArray()) {
@@ -222,7 +217,7 @@ struct Launcher
                 signal(SIGTERM, SIG_DFL);
                 signal(SIGKILL, SIG_DFL);
 
-                int res = prctl(PR_SET_PDEATHSIG, SIGHUP);
+                int res = prctl(PR_SET_PDEATHSIG, SIGTERM);
                 if(res == -1) {
                     THROW(launcherError) << "prctl failed errno=" << errno << std::endl;
                 }
@@ -280,7 +275,6 @@ struct Launcher
         std::vector<std::string> arg;
         bool log;
         double delay;
-        bool once;
     };
 
     struct Node
@@ -379,7 +373,7 @@ struct Launcher
             return 0;
         }
 
-        void script(std::string const & filename, std::string const & sh, std::string const & node, bool master, std::string const & bin) {
+        void script(std::string const & filename, std::string const & sh, std::string const & node, bool master, std::string const & binPath = "./build/x86_64/bin") {
             std::ofstream file(sh);
             if(!file) {
                 THROW(launcherError) << "cannot create '" << sh << "' script" << std::endl;
@@ -388,7 +382,7 @@ struct Launcher
             file << "#!/bin/bash" << std::endl;
             file << std::endl;
             file << "tmux kill-session -t rtb" << std::endl;
-            file << "tmux new-session -d -s rtb '" << bin << "/launcher --node " << node << " --script " << sh << (master ? " --master" : "") << " --bin " << bin << " --launch" << " " << filename << "'" << std::endl;
+            file << "tmux new-session -d -s rtb '" << binPath << "/launcher --node " << node << " --script " << sh << (master ? " --master" : "") << " --launch" << " " << filename << "'" << std::endl;
             file << "tmux rename-window 'launcher'" << std::endl;
 
             int i = 0;
@@ -448,11 +442,11 @@ struct Launcher
 
     struct Service : public MessageLoop
     {
-        void run(Json::Value const & root, std::string const & name, std::string const & filename, std::string const & sh, bool launch, bool master, std::string const & bin) {
+        void run(Json::Value const & root, std::string const & name, std::string const & filename, std::string const & sh, bool launch, bool master, std::string const & binPath = "./build/x86_64/bin") {
             sequence = Datacratic::Launcher::Sequence::createFromJson(root);
 
             if(!sh.empty()) {
-                sequence.script(filename, sh, name, master, bin);
+                sequence.script(filename, sh, name, master, binPath);
             }
 
             if(launch) {

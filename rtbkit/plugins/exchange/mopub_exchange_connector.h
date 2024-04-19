@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "rtbkit/plugins/exchange/creative_configuration.h"
 #include "rtbkit/plugins/exchange/openrtb_exchange_connector.h"
 
 namespace RTBKIT {
@@ -93,11 +92,6 @@ struct MoPubExchangeConnector: public OpenRTBExchangeConnector {
                                 const std::string & winPriceStr);
 
   private:
-    void init();
-
-    typedef TypedCreativeConfiguration<CreativeInfo> MopubCreativeConfiguration;
-    MopubCreativeConfiguration configuration_;
-
     virtual void setSeatBid(Auction const & auction,
                             int spotNum,
                             OpenRTB::BidResponse & response) const;

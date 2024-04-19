@@ -35,15 +35,8 @@ handleHttpHeader(const HttpHeader & header)
         throw Exception("invalid content type '%s' for JSON",
                         header.contentType.c_str());
     if (header.verb != "POST")
-        handleUnknownHeader(header);
+        throw Exception("invalid verb");
 }
-
-void
-JsonConnectionHandler::
-handleUnknownHeader(const HttpHeader& header) {
-    throw Exception("invalid verb");
-}
-
 
 void
 JsonConnectionHandler::

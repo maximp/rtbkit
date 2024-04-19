@@ -79,7 +79,7 @@ void
 NullEventService::
 onEvent(const std::string & name,
         const char * event,
-        StatEventType type,
+        EventType type,
         float value,
         std::initializer_list<int>)
 {
@@ -124,7 +124,7 @@ void
 CarbonEventService::
 onEvent(const std::string & name,
         const char * event,
-        StatEventType type,
+        EventType type,
         float value,
         std::initializer_list<int> extra)
 {
@@ -683,7 +683,7 @@ EventRecorder(const std::string & eventPrefix,
 
 void
 EventRecorder::
-recordEventFmt(StatEventType type,
+recordEventFmt(EventType type,
                float value,
                std::initializer_list<int> extra,
                const char * fmt, ...) const

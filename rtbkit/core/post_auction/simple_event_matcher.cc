@@ -559,12 +559,7 @@ doBidResult(
         WinCostModel wcm = response.wcm;
         wcm.data["win"] = winLossMeta;
         Bids bids = response.bidData;
-        Bid bid = bids.bidForSpot(adspot_num);
-        price = wcm.evaluate(bid, winPrice);
-
-        recordOutcome(bid.price.value, "accounts.%s.bidPrice.%s",
-                account.toString('.'),
-                bid.price.getCurrencyStr());
+        price = wcm.evaluate(bids.bidForSpot(adspot_num), winPrice);
 
         recordOutcome(winPrice.value, "accounts.%s.winPrice.%s",
                       account.toString('.'),

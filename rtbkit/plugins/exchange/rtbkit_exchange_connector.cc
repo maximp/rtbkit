@@ -40,16 +40,6 @@ parseBidRequest(HttpAuctionHandler &connection,
 
 
     if (request != nullptr) {
-
-        std::string exchange;
-        if (request->ext.isMember("exchange")) {
-            exchange = request->ext["exchange"].asString();
-        }
-        else {
-            exchange = exchangeName();
-        }
-        request->exchange = std::move(exchange);
-
         auto failure = ScopeFailure([&]() noexcept { request.reset(); });
 
         for (const auto &imp: request->imp) {
@@ -154,7 +144,7 @@ struct AtInit
     AtInit()
     {
         RTBKIT::ExchangeConnector::registerFactory<RTBKIT::RTBKitExchangeConnector>();
-        RTBKIT::FilterBase::registerFactory<RTBKIT::CreativeIdsExchangeFilter>();
+        RTBKIT::FilterRegistry::registerFilter<RTBKIT::CreativeIdsExchangeFilter>();
     }
 } atInit;
 

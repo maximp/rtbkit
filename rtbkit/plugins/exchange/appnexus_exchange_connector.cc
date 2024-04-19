@@ -23,26 +23,16 @@ namespace RTBKIT {
 
 AppNexusExchangeConnector::
 AppNexusExchangeConnector(ServiceBase & owner, const std::string & name)
-    : HttpExchangeConnector(name, owner),
-      configuration_("appnexus")
+    : HttpExchangeConnector(name, owner)
 {
-    init();
 }
 
 AppNexusExchangeConnector::
 AppNexusExchangeConnector(const std::string & name,
                           std::shared_ptr<ServiceProxies> proxies)
-    : HttpExchangeConnector(name, proxies),
-      configuration_("appnexus")
-{
-    init();
-}
-
-void
-AppNexusExchangeConnector::init()
+    : HttpExchangeConnector(name, proxies)
 {
 }
-
 
 std::shared_ptr<BidRequest>
 AppNexusExchangeConnector::

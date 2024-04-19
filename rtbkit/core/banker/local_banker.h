@@ -113,8 +113,6 @@ private:
 
     void reauthorize();
 
-    void sendBidCounts();
-
     bool bid(const AccountKey &key, Amount bidPrice);
 
     bool win(const AccountKey &key, Amount winPrice);
@@ -128,13 +126,10 @@ private:
     Amount spendRate;
     double syncRate;
     double reauthRate;
-    double bidCountRate;
     std::atomic<bool> reauthorizeInProgress;
     std::atomic<int> reauthorizeSkipped;
     std::atomic<bool> spendUpdateInProgress;
     std::atomic<int> spendUpdateSkipped;
-    std::atomic<bool> bidCountsInProgress;
-    std::atomic<int> bidCountsSkipped;
     mutable std::mutex syncMtx;
     Datacratic::Date lastSync;
     Datacratic::Date lastReauth;

@@ -15,10 +15,6 @@
 #include "jml/db/persistent.h"
 #include <boost/regex.hpp>
 
-#if NODEJS_ENABLED == 1
-#include "soa/js/js_value.h"
-#endif
-
 
 using namespace std;
 using namespace ML;
@@ -110,13 +106,11 @@ Date(int year, int month, int day,
 {
 }
 
-#if NODEJS_ENABLED == 1
 Date::
 Date(JS::JSValue & value)
 {
     throw Exception("Date::Date(JSValue): not done");
 }
-#endif
 
 Date::
 Date(const Json::Value & value)
@@ -1192,7 +1186,7 @@ toTm() const
     errno = 0;
     time_t t = toTimeT();
     if (gmtime_r(&t, &result) == 0)
-        throw ML::Exception("error converting time: t = %lld (%s)",
+        throw ML::Exception("error converting time: t = %lld",
                             (long long)t,
                             strerror(errno));
     return result;

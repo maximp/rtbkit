@@ -55,8 +55,8 @@ addBudgetSync(const std::string & topLevelCampaign,
 /* NULL BANKER                                                               */
 /*****************************************************************************/
 
-NullBanker::NullBanker(bool authorize, const std::string & serviceName)
-    : authorize_(authorize), serviceName_(serviceName)
+NullBanker::NullBanker(bool authorize)
+    : authorize_(authorize)
 {
 }
 //----------------------------------------------------------------------
@@ -92,9 +92,8 @@ NullBanker::
 getProviderIndicators() const
 {
     MonitorIndicator ind;
-    ind.serviceName = serviceName_;
     ind.status = true;
-    ind.message = "NullBanker: OK";
+    ind.message = "OK";
     return ind;
 }
 

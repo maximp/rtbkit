@@ -1,7 +1,6 @@
 
 LIBUTILS_SOURCES := \
         environment.cc \
-        exception_ptr.cc \
         file_functions.cc \
         filter_streams.cc \
         string_functions.cc \
@@ -32,7 +31,5 @@ LIBWORKER_TASK_SOURCES := worker_task.cc
 LIBWORKER_TASK_LINK    := ACE arch pthread
 
 $(eval $(call library,worker_task,$(LIBWORKER_TASK_SOURCES),$(LIBWORKER_TASK_LINK)))
-
-$(eval $(call python_addon,filter_streams,filter_streams_py.cc,utils))
 
 $(eval $(call include_sub_make,utils_testing,testing))

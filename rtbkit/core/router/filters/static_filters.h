@@ -77,16 +77,15 @@ private:
         IntervalFilter<int> filter;
         ConfigSet excludeIfEmpty;
         int modulus;
-        int uid;
         UserPartition::HashOn hashOn;
     };
 
     ConfigSet defaultSet;
     std::unordered_map<uint64_t, FilterEntry> data;
 
-    uint64_t getKey(const UserPartition& obj, int uid) const
+    uint64_t getKey(const UserPartition& obj) const
     {
-        return uint64_t(uid) << 32 | uint64_t(obj.modulus) << 16 | uint64_t(obj.hashOn);
+        return uint64_t(obj.modulus) << 32 | uint64_t(obj.hashOn);
     }
 
     std::pair<bool, uint64_t>

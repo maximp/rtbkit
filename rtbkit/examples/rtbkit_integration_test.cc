@@ -315,15 +315,13 @@ struct Components
 
         for (auto& connector : exchangeConnectors) {
             connector->enableUntil(Date::positiveInfinity());
-            connector->configurePipeline(Json::Value::null);
+
             int port = connector->init(ports, "localhost", 2 /* threads */);
             exchangePorts.push_back(port);
         }
 
         router1.addExchange(*exchangeConnectors[0]);
-        router1.initFilters();
         router2.addExchange(*exchangeConnectors[1]);
-        router2.initFilters();
         
         // Setup an ad server connector that also acts as a midlle men between
         // the exchange's wins and the post auction loop.
@@ -429,10 +427,7 @@ int main(int argc, char ** argv)
         NetworkAddress bids(components.exchangePorts[i % components.exchangePorts.size()]);
         NetworkAddress wins(components.winStreamPort);
         NetworkAddress events(components.eventStreamPort);
-
-        exchange.add(new MockBidSource(bids, nBidRequestsPerThread),
-                     new MockWinSource(wins),
-                     new MockEventSource(events));
+        exchange.add(new MockBidSource(bids, nBidRequestsPerThread), new MockWinSource(wins), new MockEventSource(events));
     }
 
     // Dump the budget stats while we wait for the test to finish. Only the

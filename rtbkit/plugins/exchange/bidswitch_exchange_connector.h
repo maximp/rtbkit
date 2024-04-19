@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include "rtbkit/plugins/exchange/openrtb_exchange_connector.h"
 #include "rtbkit/core/router/filters/generic_filters.h"
-#include "rtbkit/plugins/exchange/creative_configuration.h"
+#include "rtbkit/common/creative_configuration.h"
 
 namespace RTBKIT {
 
@@ -43,14 +43,8 @@ struct BidSwitchExchangeConnector: public OpenRTBExchangeConnector {
     getTimeAvailableMs(HttpAuctionHandler & connection,
                        const HttpHeader & header,
                        const std::string & payload) {
-        // Scan the payload quickly for the tmax parameter.
-        static const std::string toFind = "\"tmax\":";
-        std::string::size_type pos = payload.find(toFind);
-        if (pos == std::string::npos)
-            return 30.0; //ms as specified by the SLA 
-    
-        int tmax = atoi(payload.c_str() + pos + toFind.length());
-        return (absoluteTimeMax < tmax) ? absoluteTimeMax : tmax;
+        // TODO: check that is at it seems
+        return 200.0;
     }
 
     /** This is the information that the BidSwitch exchange needs to keep
@@ -72,31 +66,13 @@ struct BidSwitchExchangeConnector: public OpenRTBExchangeConnector {
         Id adid;                ///< ID for ad to be service if bid wins
         std::string nurl;       ///< Win notice URL
         std::vector<std::string> adomain;    ///< Advertiser Domain
-        std::string adm; ///< Creative markup for banner ads
-        struct Google {
-            std::vector<int32_t> vendor_type;
-            std::set<int32_t> attribute ;
-        } google;
-
-        struct YieldOne {
-            YieldOne()
-                : creative_type("")
-                , creative_category_id(-1)
-            { }
-
-            std::string creative_type;
-            int32_t creative_category_id;
-        } yieldOne;
-
         struct {
-            std::string advertiserName; ///< The name of the advertiser serving the creative
-            std::string agencyName; ///< The name of the agency representing the advertiser
-            std::vector<std::string> lpDomain; ///< The actual landing page domain of the creative if different from adomain value
-            std::string language; ///< Alpha-2/ISO 639-1 code of the creative language
-            std::string vastUrl; ///< The url pointing to the location of the VAST document for the bid response
-            int duration; ///< Video ad duration if seconds
-        } ext;
+            std::vector<int32_t> vendor_type_;
+            std::set<int32_t> attribute_ ;
+        } Google;
     };
+
+    typedef CreativeConfiguration<CreativeInfo> BidSwitchCreativeConfiguration;
     
     virtual ExchangeCompatibility
     getCreativeCompatibility(const Creative & creative,
@@ -107,30 +83,20 @@ struct BidSwitchExchangeConnector: public OpenRTBExchangeConnector {
                              const AgentConfig & config,
                              const void * info) const;
 
+
     // BidSwitch win price decoding function.
     static float decodeWinPrice(const std::string & sharedSecret,
                                 const std::string & winPriceStr);
 
   private:
 
-    void init();
-
-    typedef TypedCreativeConfiguration<CreativeInfo> BidSwitchCreativeConfiguration;
     BidSwitchCreativeConfiguration configuration_;
-    
+
     virtual void setSeatBid(Auction const & auction,
                             int spotNum,
                             OpenRTB::BidResponse & response) const;
 
-    Json::Value
-    getResponseExt(const HttpAuctionHandler& connection,
-                   const Auction& auction) const;
-
-    Json::Value
-    toExt(const CreativeInfo::Google& gobj) const;
-
-    Json::Value
-    toExt(const CreativeInfo::YieldOne& yobj) const;
+    void init();
 };
 
 struct BidSwitchWSeatFilter : public FilterBaseT<BidSwitchWSeatFilter>
@@ -139,38 +105,35 @@ struct BidSwitchWSeatFilter : public FilterBaseT<BidSwitchWSeatFilter>
     unsigned priority() const { return 10; }
 
     std::unordered_map<std::string, ConfigSet> data;
-    ConfigSet defaultSet;
+    ConfigSet emptyConfigSet;
 
     void setConfig(unsigned configIndex, const AgentConfig& config, bool value)
     {
-        if (config.providerConfig.isMember("bidswitch")) {
-            auto provConf = config.providerConfig["bidswitch"];
-            if (provConf.isMember("seat")) {
-                auto seat = provConf["seat"].asString();
-                data[seat].set(configIndex, value);
-                return;
-            }
+        Json::Value cfg = config.providerConfig["bidswitch"];
+        if(!cfg.empty() && !cfg["seat"].empty()) {
+            // Might change depending if the providerConfig allows more than one seat.
+            data[config.providerConfig["bidswitch"]["seat"].asString()].set(configIndex, value);
         }
-
-        defaultSet.set(configIndex, value);
+        else {
+            emptyConfigSet.set(configIndex, value);
+        }
     }
 
     void filter(FilterState& state) const
     {
-        const auto& segs = state.request.segments.get("openrtb-wseat");
-        if (segs.empty()) return;
+        ConfigSet mask(emptyConfigSet);
 
-        ConfigSet mask = defaultSet;
+        auto& segs = state.request.segments.get("openrtb-wseat");
  
         // Calls the filter for every wseat in the BR.
         segs.forEach([&](int, const std::string &str, float) {
             auto it = data.find(str);
-            if((it != data.end())) {
+            if(!(it == data.end())) {
                 auto& configs = it->second;
                 mask |= configs;
             }
         });
-
+        
         state.narrowConfigs(mask);
     }
 };

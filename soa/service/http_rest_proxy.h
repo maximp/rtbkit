@@ -11,7 +11,14 @@
 #include "jml/utils/string_functions.h"
 #include "soa/types/value_description.h"
 #include "soa/service/http_endpoint.h"
-#include "soa/service/curl_wrapper.h"
+
+
+namespace curlpp {
+
+struct Easy;
+
+} // namespace curlpp
+
 
 namespace Datacratic {
 
@@ -60,26 +67,16 @@ struct HttpRestProxy {
         }
 
         /** Get the given response header of the REST call. */
-        const std::pair<const std::string, std::string> *
-        hasHeader(const std::string & name) const
+        std::string getHeader(const std::string & name) const
         {
             auto it = header_.headers.find(name);
             if (it == header_.headers.end())
                 it = header_.headers.find(ML::lowercase(name));
             if (it == header_.headers.end())
-                return nullptr;
-            return &(*it);
+                throw ML::Exception("required header " + name + " not found");
+            return it->second;
         }
 
-        /** Get the given response header of the REST call. */
-        std::string getHeader(const std::string & name) const
-        {
-            auto p = hasHeader(name);
-            if (!p)
-                throw ML::Exception("required header " + name + " not found");
-            return p->second;
-        }
-        
         long code_;
         std::string body_;
         HttpHeader header_;
@@ -144,7 +141,7 @@ struct HttpRestProxy {
             }
             return result;
         }
-
+        
         Content(const RestParams & form)
         {
             for (auto p: form) {
@@ -245,15 +242,14 @@ private:
     /** List of inactive handles.  These can be selected from when a new
         connection needs to be made.
     */
-    //TODO replace with a safer storage - typedef std::shared_ptr<CurlWrapper::Easy> EasyPtr;
-    mutable std::vector<CurlWrapper::Easy*> inactive;
+    mutable std::vector<curlpp::Easy *> inactive;
 
     std::vector<std::string> cookies;
 
 public:
     /** Get a connection. */
     struct Connection {
-        Connection(CurlWrapper::Easy * conn,
+        Connection(curlpp::Easy * conn,
                    HttpRestProxy * proxy)
             : conn(conn), proxy(proxy)
         {
@@ -275,15 +271,15 @@ public:
             return *this;
         }
 
-        CurlWrapper::Easy & operator * () { ExcAssert(conn);  return *conn; }
+        curlpp::Easy & operator * () { ExcAssert(conn);  return *conn; }
 
     private:
-        CurlWrapper::Easy * conn;
+        curlpp::Easy * conn;
         HttpRestProxy * proxy;
     };
 
     Connection getConnection() const;
-    void doneConnection(CurlWrapper::Easy * conn);
+    void doneConnection(curlpp::Easy * conn);
 };
 
 inline std::ostream &
@@ -307,6 +303,8 @@ struct JsonRestProxy : HttpRestProxy {
 
     /* authentication token */
     std::string authToken;
+
+    int protocolDate;
 
     /* number of exponential backoffs, -1 = unlimited */
     int maxRetries;

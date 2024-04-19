@@ -5,21 +5,25 @@
    REST proxy class for http.
 */
 
-#include <curl/curl.h>
+#include <curlpp/cURLpp.hpp>
+#include <curlpp/Easy.hpp>
+#include <curlpp/Options.hpp>
+#include <curlpp/Info.hpp>
+#include <curlpp/Infos.hpp>
+
 #include "jml/arch/threads.h"
 #include "jml/arch/timers.h"
 #include "soa/types/basic_value_descriptions.h"
-#include "openssl_threading.h"
 
 #include "http_rest_proxy.h"
 
 
 using namespace std;
 using namespace ML;
-using namespace Datacratic;
 
 
 namespace Datacratic {
+
 
 /*****************************************************************************/
 /* HTTP REST PROXY                                                           */
@@ -47,58 +51,84 @@ perform(const std::string & verb,
     string responseHeaders;
     string body;
     string uri;
-    RestParams curlHeaders = headers;
-    
+
     try {
         responseHeaders.clear();
         body.clear();
 
         Connection connection = getConnection();
 
-        CurlWrapper::Easy & myRequest = *connection;
+        curlpp::Easy & myRequest = *connection;
+
+        using namespace curlpp::options;
+        using namespace curlpp::infos;
+            
+        list<string> curlHeaders;
+        for (unsigned i = 0;  i < headers.size();  ++i) {
+            curlHeaders.push_back(headers[i].first + ": "
+                                  + headers[i].second);
+        }
 
         uri = serviceUri + resource + queryParams.uriEscaped();
 
-        myRequest.add_option(CURLOPT_CUSTOMREQUEST, verb);
+        //cerr << "uri = " << uri << endl;
         
-        myRequest.add_option(CURLOPT_URL, uri);
-        
-        if (debug)
-            myRequest.add_option(CURLOPT_VERBOSE, 1L);
+        myRequest.setOpt<CustomRequest>(verb);
 
+        myRequest.setOpt<curlpp::options::Url>(uri);
+
+        if (debug)
+            myRequest.setOpt<Verbose>(true);
+
+        myRequest.setOpt<ErrorBuffer>((char *)0);
         if (timeout != -1)
-            myRequest.add_option(CURLOPT_TIMEOUT, timeout);
-        else myRequest.add_option(CURLOPT_TIMEOUT, 0L);
-        myRequest.add_option(CURLOPT_NOSIGNAL, 1L);
+            myRequest.setOpt<curlpp::OptionTrait<long, CURLOPT_TIMEOUT_MS> >(timeout * 1000);
+        else myRequest.setOpt<Timeout>(0);
+        myRequest.setOpt<NoSignal>(1);
 
         if (noSSLChecks) {
-            myRequest.add_option(CURLOPT_SSL_VERIFYHOST, 0L);
-            myRequest.add_option(CURLOPT_SSL_VERIFYPEER, 0L);
+            myRequest.setOpt<SslVerifyHost>(false);
+            myRequest.setOpt<SslVerifyPeer>(false);
         }
 
-        CurlWrapper::Easy::CurlCallback onWriteData
-            = [&] (char * data, size_t ofs1, size_t ofs2) -> size_t
+        // auto onData = [&] (char * data, size_t ofs1, size_t ofs2) -> size_t
+        //     {
+        //         //cerr << "called onData for " << ofs1 << " " << ofs2 << endl;
+        //         return 0;
+        //     };
+
+        auto onWriteData = [&] (char * data, size_t ofs1, size_t ofs2) -> size_t
             {
                 if (debug)
                     cerr << "got data " << string(data, data + ofs1 * ofs2) << endl;
 
                 if (onData) {
                     if (!onData(string(data, data + ofs1 * ofs2)))
-                        return ofs1 * ofs2 + 1; //indicate an error
+                        return 0;
                     return ofs1 * ofs2;
                 }
 
                 body.append(data, ofs1 * ofs2);
                 return ofs1 * ofs2;
+                //cerr << "called onWrite for " << ofs1 << " " << ofs2 << endl;
+                return 0;
+            };
+
+        auto onProgress = [&] (double p1, double p2, double p3, double p4) -> int
+            {
+                cerr << "progress " << p1 << " " << p2 << " " << p3 << " "
+                << p4 << endl;
+                return 0;
             };
 
         bool afterContinue = false;
 
+        //cerr << endl << endl << "*******************" << endl;
+
         Response response;
         bool headerParsed = false;
 
-        CurlWrapper::Easy::CurlCallback onHeaderLine
-            = [&] (char * data, size_t ofs1, size_t ofs2) -> size_t
+        auto onHeaderLine = [&] (char * data, size_t ofs1, size_t ofs2) -> size_t
             {
                 ExcAssert(!headerParsed);
 
@@ -122,55 +152,65 @@ perform(const std::string & verb,
 
                         if (onHeader)
                             if (!onHeader(response.header_))
-                                return ofs1 * ofs2 + 1;  // indicate an error
+                                return 0;  // bail
                     }
+                    //cerr << "got header data " << headerLine << endl;
                 }
                 return ofs1 * ofs2;
             };
 
-        myRequest.add_callback_option(CURLOPT_HEADERFUNCTION, CURLOPT_HEADERDATA, onHeaderLine);
-        myRequest.add_callback_option(CURLOPT_WRITEFUNCTION, CURLOPT_WRITEDATA, onWriteData);
-
+        myRequest.setOpt<BoostHeaderFunction>(onHeaderLine);
+        myRequest.setOpt<BoostWriteFunction>(onWriteData);
+        myRequest.setOpt<BoostProgressFunction>(onProgress);
         for (auto & cookie: cookies)
-            myRequest.add_option(CURLOPT_COOKIELIST, cookie);
+            myRequest.setOpt<curlpp::options::CookieList>(cookie);
+
+        //myRequest.setOpt<Header>(true);
 
         if (content.data) {
-            myRequest.add_option(CURLOPT_POSTFIELDSIZE, content.size);
-            myRequest.add_data_option(CURLOPT_POSTFIELDS, content.data);
-            curlHeaders.emplace_back(make_pair("Content-Length", ML::format("%lld", content.size)));
-            curlHeaders.emplace_back(make_pair("Content-Type", content.contentType));
+            string s(content.data, content.size);
+            myRequest.setOpt<PostFields>(s);
+            myRequest.setOpt<PostFieldSize>(content.size);
+            curlHeaders.push_back(ML::format("Content-Length: %lld",
+                                             content.size));
+            //curlHeaders.push_back("Transfer-Encoding:");
+            curlHeaders.push_back("Content-Type: " + content.contentType);
         }
         else {
-            myRequest.add_option(CURLOPT_POSTFIELDSIZE, 0L);
-            myRequest.add_option(CURLOPT_POSTFIELDS, "");
+            myRequest.setOpt<PostFieldSize>(-1);
+            myRequest.setOpt<PostFields>("");
         }
 
-        myRequest.add_header_option(curlHeaders);
+        myRequest.setOpt<curlpp::options::HttpHeader>(curlHeaders);
 
-        CURLcode code = myRequest.perform();
-        response.body_ = body;
-        if (code != CURLE_OK) {
-            if (!exceptions) {
+        if (exceptions) {
+            myRequest.perform();
+            response.body_ = body;
+        }
+        else {
+            CURLcode code = curl_easy_perform(myRequest.getHandle());
+            response.body_ = body;
+            if (code != CURLE_OK) {
                 response.errorCode_ = code;
                 response.errorMessage_ = curl_easy_strerror(code);
                 return response;
             }
-            else {
-                throw CurlWrapper::RuntimeError("performing HTTP request",
-                                                code);
-            }
         }
 
-        myRequest.get_info(CURLINFO_RESPONSE_CODE, response.code_);
+        curlpp::InfoGetter::get(myRequest, CURLINFO_RESPONSE_CODE,
+                                response.code_);
 
         double bytesUploaded;
     
-        myRequest.get_info(CURLINFO_SIZE_UPLOAD, bytesUploaded);
+        curlpp::InfoGetter::get(myRequest, CURLINFO_SIZE_UPLOAD,
+                                bytesUploaded);
 
         //cerr << "uploaded " << bytesUploaded << " bytes" << endl;
 
+        ExcAssert(headerParsed);
+
         return response;
-    } catch (const CurlWrapper::RuntimeError & exc) {
+    } catch (const curlpp::LibcurlRuntimeError & exc) {
         if (exc.whatCode() == CURLE_OPERATION_TIMEDOUT)
             throw;
         cerr << "libCurl returned an error with code " << exc.whatCode()
@@ -201,7 +241,7 @@ getConnection() const
     std::unique_lock<std::mutex> guard(lock);
 
     if (inactive.empty()) {
-        return Connection(new CurlWrapper::Easy, const_cast<HttpRestProxy *>(this));
+        return Connection(new curlpp::Easy, const_cast<HttpRestProxy *>(this));
     }
     else {
         auto res = inactive.back();
@@ -212,10 +252,9 @@ getConnection() const
 
 void
 HttpRestProxy::
-doneConnection(CurlWrapper::Easy * conn)
+doneConnection(curlpp::Easy * conn)
 {
     std::unique_lock<std::mutex> guard(lock);
-    conn->reset();
     inactive.push_back(conn);
 }
 
@@ -226,7 +265,8 @@ doneConnection(CurlWrapper::Easy * conn)
 
 JsonRestProxy::
 JsonRestProxy(const string & url)
-    : HttpRestProxy(url), maxRetries(10), maxBackoffTime(900)
+    : HttpRestProxy(url), protocolDate(0),
+      maxRetries(10), maxBackoffTime(900)
 {
     if (url.find("https://") == 0) {
         cerr << "warning: no validation will be performed on the SSL cert.\n";
@@ -250,6 +290,9 @@ performWithBackoff(const string & method, const string & resource,
     // cerr << "posting data to " + resource + "\n";
     if (authToken.size() > 0) {
         headers.emplace_back(make_pair("Cookie", "token=\"" + authToken + "\""));
+    }
+    if (protocolDate > 0) {
+        headers.emplace_back(make_pair("X-Protocol-Date", to_string(protocolDate)));
     }
 
     pid_t tid = gettid();

@@ -18,7 +18,6 @@ namespace RTBKIT {
 
 struct BidStack {
     std::shared_ptr<ServiceProxies> proxies;
-    bool enforceAgents;
 
     // components
     struct Services {
@@ -30,10 +29,9 @@ struct BidStack {
 
     Json::Value bidderConfig;
 
-    BidStack()
-     : proxies(new ServiceProxies())
-     , enforceAgents(true)
-    { }
+    BidStack() {
+        proxies.reset(new ServiceProxies());
+    }
 
     void run(Json::Value const & routerConfig,
              Json::Value const & bidderConfig,
@@ -83,13 +81,14 @@ struct BidStack {
         }
 
         services.router->setBanker(services.banker);
-
-        services.router->initExchanges(routerConfig);
-        services.router->initFilters();
-
         // Start the router up
         services.router->bindTcp();
         services.router->start();
+
+        // Configure exchange connectors
+        for(auto & exchange : routerConfig) {
+            services.router->startExchange(exchange);
+        }
 
         std::string mock = "{\"workers\":[";
 
@@ -106,7 +105,7 @@ struct BidStack {
         mock += "]}";
 
         // This is our bidding agent, that actually calculates the bid price
-        if(services.agents.empty() && enforceAgents) {
+        if(services.agents.empty()) {
             auto agent = std::make_shared<TestAgent>(proxies, "agent");
             agent->bidWithFixedAmount(amount);
             services.agents.push_back(agent);

@@ -123,7 +123,6 @@ GoRouterAccount::accumulateBalance(const Amount & newBalance)
 bool
 GoRouterAccount::bid(Amount bidPrice)
 {
-    ++bidsLastPeriod;
     if (balance >= bidPrice) {
         balance -= bidPrice;
         return true;

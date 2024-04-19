@@ -260,7 +260,7 @@ onCleanup()
 void
 HttpAuctionHandler::
 doEvent(const char * eventName,
-        StatEventType type,
+        EventType type,
         float value,
         const char * units,
         std::initializer_list<int> extra)
@@ -318,16 +318,15 @@ handleHttpPayload(const HttpHeader & header,
         dropAuction("endpoint not enabled");
         return;
     }
-
+    
     double acceptProbability = endpoint->acceptAuctionProbability;
+
     if (acceptProbability < 1.0
         && random() % 1000000 > 1000000 * acceptProbability) {
         // early drop...
         doEvent("auctionEarlyDrop.randomEarlyDrop");
-        if(!endpoint->disableAcceptProbability) {
-            dropAuction("random early drop");
-            return;
-        }
+        dropAuction("random early drop");
+        return;
     }
 
     double timeAvailableMs = getTimeAvailableMs(header, payload);
@@ -335,7 +334,7 @@ handleHttpPayload(const HttpHeader & header,
 
     doEvent("auctionStartLatencyMs",
             ET_OUTCOME,
-            now.secondsSince(endpoint->getStartTime()) * 1000.0, "ms");
+            now.secondsSince(firstData) * 1000.0, "ms");
 
     doEvent("auctionTimeAvailableMs",
             ET_OUTCOME,
@@ -387,13 +386,6 @@ handleHttpPayload(const HttpHeader & header,
         (max(5.0, (timeAvailableMs - networkTimeMs)) / 1000.0);
 
     try {
-
-        auto preStatus = endpoint->preBidRequest(header, payload);
-        if (preStatus == PipelineStatus::Stop) {
-            dropAuction("pre bid request pipeline");
-            return;
-        }
-
         auto bidRequest = parseBidRequest(header, payload);
 
         if (!bidRequest) {
@@ -409,14 +401,7 @@ handleHttpPayload(const HttpHeader & header,
                                   "datacratic",
                                   firstData, expiry));
 
-        auction->requestOriginal = payload;
         endpoint->adjustAuction(auction);
-
-        auto postStatus = endpoint->postBidRequest(auction);
-        if (postStatus == PipelineStatus::Stop) {
-            dropAuction("post bid request pipeline");
-            return;
-        }
 
 
 #if 0

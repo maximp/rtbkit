@@ -80,15 +80,11 @@ struct FilterPool
     void addFilter(const std::string& name);
     void removeFilter(const std::string& name);
     void initWithDefaultFilters();
-    void initWithFiltersFromJson(const Json::Value & json);
 
 
     // \todo Need batch interfaces to alleviate overhead.
     unsigned addConfig(const std::string& name, const AgentInfo& info);
     void removeConfig(const std::string& name);
-
-    // Added for test purposes
-    std::vector<string> getFilterNames() const;
 
 private:
 
@@ -120,7 +116,7 @@ private:
 
     std::atomic<Data*> data;
     std::vector< std::shared_ptr<AgentConfig> > configs;
-    mutable Datacratic::GcLock gc;
+    Datacratic::GcLock gc;
 
     EventRecorder* events;
 };

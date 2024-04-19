@@ -32,8 +32,6 @@
 
 #include "soa/types/basic_value_descriptions.h"
 
-#include <future>
-
 using namespace std;
 using namespace Datacratic;
 
@@ -42,7 +40,7 @@ timevalDescription::
 timevalDescription()
 {
     addField("tv_sec", &timeval::tv_sec, "seconds");
-    addField("tv_usec", &timeval::tv_usec, "micro seconds", (long)0);
+    addField("tv_usec", &timeval::tv_usec, "micro seconds");
 }
 
 rusageDescription::
@@ -50,20 +48,20 @@ rusageDescription()
 {
     addField("utime", &rusage::ru_utime, "user CPU time used");
     addField("stime", &rusage::ru_stime, "system CPU time used");
-    addField("maxrss", &rusage::ru_maxrss, "maximum resident set size", (long)0);
-    addField("ixrss", &rusage::ru_ixrss, "integral shared memory size", (long)0);
-    addField("idrss", &rusage::ru_idrss, "integral unshared data size", (long)0);
-    addField("isrss", &rusage::ru_isrss, "integral unshared stack size", (long)0);
-    addField("minflt", &rusage::ru_minflt, "page reclaims (soft page faults)", (long)0);
-    addField("majflt", &rusage::ru_majflt, "page faults (hard page faults)", (long)0);
-    addField("nswap", &rusage::ru_nswap, "swaps", (long)0);
-    addField("inblock", &rusage::ru_inblock, "block input operations", (long)0);
-    addField("oublock", &rusage::ru_oublock, "block output operations", (long)0);
-    addField("msgsnd", &rusage::ru_msgsnd, "IPC messages sent", (long)0);
-    addField("msgrcv", &rusage::ru_msgrcv, "IPC messages received", (long)0);
-    addField("nsignals", &rusage::ru_nsignals, "signals received", (long)0);
-    addField("nvcsw", &rusage::ru_nvcsw, "voluntary context switches", (long)0);
-    addField("nivcsw", &rusage::ru_nivcsw, "involuntary context switches", (long)0);
+    addField("maxrss", &rusage::ru_maxrss, "maximum resident set size");
+    addField("ixrss", &rusage::ru_ixrss, "integral shared memory size");
+    addField("idrss", &rusage::ru_idrss, "integral unshared data size");
+    addField("isrss", &rusage::ru_isrss, "integral unshared stack size");
+    addField("minflt", &rusage::ru_minflt, "page reclaims (soft page faults)");
+    addField("majflt", &rusage::ru_majflt, "page faults (hard page faults)");
+    addField("nswap", &rusage::ru_nswap, "swaps");
+    addField("inblock", &rusage::ru_inblock, "block input operations");
+    addField("oublock", &rusage::ru_oublock, "block output operations");
+    addField("msgsnd", &rusage::ru_msgsnd, "IPC messages sent");
+    addField("msgrcv", &rusage::ru_msgrcv, "IPC messages received");
+    addField("nsignals", &rusage::ru_nsignals, "signals received");
+    addField("nvcsw", &rusage::ru_nvcsw, "voluntary context switches");
+    addField("nivcsw", &rusage::ru_nivcsw, "involuntary context switches");
 }
 
 
@@ -90,21 +88,16 @@ CreateStdPipe(bool forWriting)
 
 } // namespace
 
-
 namespace Datacratic {
 
-/****************************************************************************/
-/* RUNNER                                                                   */
-/****************************************************************************/
-
-std::string Runner::runnerHelper;
+/* ASYNCRUNNER */
 
 Runner::
 Runner()
     : EpollLoop(nullptr),
-      closeStdin(false), runRequests_(0), activeRequest_(0), running_(false),
+      closeStdin(false), running_(false),
       startDate_(Date::negativeInfinity()), endDate_(startDate_),
-      childPid_(-1), childStdinFd_(-1),
+      childPid_(-1),
       statusRemaining_(sizeof(ProcessStatus))
 {
 }
@@ -112,7 +105,7 @@ Runner()
 Runner::
 ~Runner()
 {
-    kill(SIGTERM, false);
+    waitTermination();
 }
 
 void
@@ -163,6 +156,14 @@ handleChildStatus(const struct epoll_event & event)
                     (status.launchErrno,
                      strLaunchError(status.launchErrorCode));
                 task_.statusState = ProcessState::STOPPED;
+                childPid_ = -2;
+                ML::futex_wake(childPid_);
+
+                if (stdInSink_ && stdInSink_->state != OutputSink::CLOSED) {
+                    stdInSink_->requestClose();
+                }
+                attemptTaskTermination();
+                break;
             }
 
             switch (status.state) {
@@ -174,14 +175,9 @@ handleChildStatus(const struct epoll_event & event)
                 ML::futex_wake(childPid_);
                 break;
             case ProcessState::STOPPED:
-                if (task_.runResult.state == RunResult::LAUNCH_ERROR) {
-                    childPid_ = -2;
-                }
-                else {
-                    task_.runResult.updateFromStatus(status.childStatus);
-                    childPid_ = -3;
-                }
+                childPid_ = -3;
                 ML::futex_wake(childPid_);
+                task_.runResult.updateFromStatus(status.childStatus);
                 task_.statusState = ProcessState::DONE;
                 if (stdInSink_ && stdInSink_->state != OutputSink::CLOSED) {
                     stdInSink_->requestClose();
@@ -201,34 +197,9 @@ handleChildStatus(const struct epoll_event & event)
     }
 
     if ((event.events & EPOLLHUP) != 0) {
-        // This happens when the thread that launched the process exits,
-        // and the child process follows.
         removeFd(task_.statusFd, true);
         ::close(task_.statusFd);
         task_.statusFd = -1;
-
-        if (task_.statusState == ProcessState::RUNNING
-            || task_.statusState == ProcessState::LAUNCHING) {
-            cerr << "*************************************************************" << endl;
-            cerr << " HANGUP ON STATUS FD: RUNNER FORK THREAD EXITED?" << endl;
-            cerr << "*************************************************************" << endl;
-            cerr << "state = " << jsonEncode(task_.runResult.state) << endl;
-            cerr << "statusState = " << (int)task_.statusState << endl;
-            cerr << "childPid_ = " << childPid_ << endl;
-
-            // We will never get another event, so we need to clean up 
-            // everything here.
-            childPid_ = -3;
-            ML::futex_wake(childPid_);
-
-            task_.runResult.state = RunResult::PARENT_EXITED;
-            task_.runResult.signum = SIGHUP;
-            task_.statusState = ProcessState::DONE;
-            if (stdInSink_ && stdInSink_->state != OutputSink::CLOSED) {
-                stdInSink_->requestClose();
-            }
-            attemptTaskTermination();
-        }
     }
 }
 
@@ -321,32 +292,18 @@ attemptTaskTermination()
         && !stdOutSink_ && !stdErrSink_ && childPid_ < 0
         && (task_.statusState == ProcessState::STOPPED
             || task_.statusState == ProcessState::DONE)) {
-        auto runResult = move(task_.runResult);
-        auto onTerminate = move(task_.onTerminate);
         task_.postTerminate(*this);
 
         if (stdInSink_) {
             stdInSink_.reset();
         }
 
-        endDate_ = Date::now();
-
-        ExcAssert(onTerminate);
-        onTerminate(runResult);
-
-        /* Setting running_ to false must be done after "onTerminate" is
-           invoked, since "waitTermination" guarantees that "onTerminate" has
-           been called. In async mode, doing it here will not be a problem,
-           since "running_" will be reset to true when the MessageLoop
-           processes its delayed jobs. */
         running_ = false;
+        endDate_ = Date::now();
         ML::futex_wake(running_);
     }
-    /* This block is useful for debugging the termination workflow of the
-       subprocess, therefore it should be kept 2 years after this date:
-       2015-07-02. If uncommented, this date should be updated to the current
-       date. */
-    else if (false) {
+#if 0
+    else {
         cerr << "cannot terminate yet because:\n";
         if ((stdInSink_ && stdInSink_->state != OutputSink::CLOSED)) {
             cerr << "stdin sink active\n";
@@ -361,20 +318,21 @@ attemptTaskTermination()
             cerr << "childPid_ >= 0\n";
         }
         if (!(task_.statusState == ProcessState::STOPPED
-              || task_.statusState == ProcessState::DONE)) {
+              || task_.statusState == DONE)) {
             cerr << "task status != stopped/done\n";
         }
     }
+#endif
 }
 
 OutputSink &
 Runner::
 getStdInSink()
 {
-    if (stdInSink_) {
+    if (running_)
+        throw ML::Exception("already running");
+    if (stdInSink_)
         throw ML::Exception("stdin sink already set");
-    }
-    ExcAssertEqual(childStdinFd_, -1);
 
     auto onClose = [&] () {
         if (task_.stdInFd != -1) {
@@ -382,21 +340,9 @@ getStdInSink()
             task_.stdInFd = -1;
         }
         removeFd(stdInSink_->selectFd(), true);
-        if (task_.wrapperPid > -1) {
-            attemptTaskTermination();
-        }
+        attemptTaskTermination();
     };
     stdInSink_.reset(new AsyncFdOutputSink(onClose, onClose));
-
-    tie(task_.stdInFd, childStdinFd_) = CreateStdPipe(true);
-    ML::set_file_flag(task_.stdInFd, O_NONBLOCK);
-    stdInSink_->init(task_.stdInFd);
-
-    auto stdinCopy = stdInSink_;
-    auto stdinCb = [=] (const epoll_event & event) {
-        stdinCopy->processOne();
-    };
-    addFd(stdInSink_->selectFd(), true, false, stdinCb);
 
     return *stdInSink_;
 }
@@ -412,40 +358,8 @@ run(const vector<string> & command,
         LOG(warnings)
             << ML::format("Runner %p is not connected to any MessageLoop\n", this);
     }
-    if (!onTerminate) {
-        throw ML::Exception("'onTerminate' parameter is mandatory");
-    }
-    ExcAssert(runRequests_ < std::numeric_limits<int>::max());
-    runRequests_++;
 
-    /* We run this in the message loop thread, which becomes the parent of the
-       child process. This is to avoid problems when the thread we're calling
-       run from exits, and since it's the parent process of the fork, causes
-       the subprocess to exit to due to PR_SET_DEATHSIG being set .*/
-    auto toRun = [=] () {
-        try {
-            JML_TRACE_EXCEPTIONS(false);
-            this->doRunImpl(command, onTerminate, stdOutSink, stdErrSink);
-        }
-        catch (const std::exception & exc) {
-            /* Exceptions must be returned via onTerminate in order to provide
-               a consistent behaviour when "run" is called from the original
-               Runner thread or from the MessageLoop thread. "onTerminate" is
-               mandatory and is thus guaranteed to exist here. */
-            RunResult result;
-            result.updateFromLaunchException(std::current_exception());
-            ExcAssert(onTerminate);
-            onTerminate(result);
-        }
-        catch (...) {
-            cerr << ("FATAL: Runner::runImpl::toRun caught an unhandled"
-                     " exception. MessageLoop thread will die.\n");
-            throw;
-        }
-    };
-    ExcAssert(parent_ != nullptr);
-    bool res = parent_->runInMessageLoopThread(toRun);
-    ExcAssert(res);
+    runImpl(command, onTerminate, stdOutSink, stdErrSink);
 }
 
 RunResult
@@ -455,10 +369,8 @@ runSync(const vector<string> & command,
         const shared_ptr<InputSink> & stdErrSink,
         const string & stdInData)
 {
-    ExcAssert(runRequests_ < std::numeric_limits<int>::max());
-    runRequests_++;
-
     RunResult result;
+
     bool terminated(false);
     auto onTerminate = [&] (const RunResult & newResult) {
         result = newResult;
@@ -469,7 +381,7 @@ runSync(const vector<string> & command,
     if (stdInData.size() > 0) {
         sink = &getStdInSink();
     }
-    doRunImpl(command, onTerminate, stdOutSink, stdErrSink);
+    runImpl(command, onTerminate, stdOutSink, stdErrSink);
     if (sink) {
         sink->write(stdInData);
         sink->requestClose();
@@ -479,43 +391,32 @@ runSync(const vector<string> & command,
         loop(-1, -1);
     }
 
-    if (result.state == RunResult::LAUNCH_EXCEPTION) {
-        std::rethrow_exception(result.launchExc);
-    }
-
     return result;
 }
 
 void
 Runner::
-doRunImpl(const vector<string> & command,
-          const OnTerminate & onTerminate,
-          const shared_ptr<InputSink> & stdOutSink,
-          const shared_ptr<InputSink> & stdErrSink)
+runImpl(const vector<string> & command,
+        const OnTerminate & onTerminate,
+        const shared_ptr<InputSink> & stdOutSink,
+        const shared_ptr<InputSink> & stdErrSink)
 {
-    /* "activeRequest" must be increased after "running_" is set, in order to
-       guarantee the continuity between "waitRunning" and "waitTermination".
-    */
-    bool oldRunning(running_);
-    running_ = true;
-    ML::futex_wake(running_);
-    activeRequest_++;
-    ML::futex_wake(activeRequest_);
-    if (oldRunning) {
+    if (running_)
         throw ML::Exception("already running");
-    }
+
     startDate_ = Date::now();
     endDate_ = Date::negativeInfinity();
+    running_ = true;
+    ML::futex_wake(running_);
 
+    task_.statusState = ProcessState::UNKNOWN;
     task_.onTerminate = onTerminate;
 
     ProcessFds childFds;
     tie(task_.statusFd, childFds.statusFd) = CreateStdPipe(false);
 
     if (stdInSink_) {
-        ExcAssert(childStdinFd_ != -1);
-        childFds.stdIn = childStdinFd_;
-        childStdinFd_ = -1;
+        tie(task_.stdInFd, childFds.stdIn) = CreateStdPipe(true);
     }
     else if (closeStdin) {
         childFds.stdIn = -1;
@@ -533,29 +434,28 @@ doRunImpl(const vector<string> & command,
     ::flockfile(stderr);
     ::fflush_unlocked(NULL);
     task_.wrapperPid = fork();
-    int savedErrno = errno;
     ::funlockfile(stderr);
     ::funlockfile(stdout);
     if (task_.wrapperPid == -1) {
-        throw ML::Exception(savedErrno, "Runner::run fork");
+        throw ML::Exception(errno, "Runner::run fork");
     }
     else if (task_.wrapperPid == 0) {
-        try {
-            task_.runWrapper(command, childFds);
-        }
-        catch (...) {
-            ProcessStatus status;
-            status.state = ProcessState::STOPPED;
-            status.setErrorCodes(errno, LaunchError::SUBTASK_LAUNCH);
-            childFds.writeStatus(status);
-
-            exit(-1);
-        }
+        task_.runWrapper(command, childFds);
     }
     else {
         task_.statusState = ProcessState::LAUNCHING;
 
         ML::set_file_flag(task_.statusFd, O_NONBLOCK);
+        if (stdInSink_) {
+            ML::set_file_flag(task_.stdInFd, O_NONBLOCK);
+            stdInSink_->init(task_.stdInFd);
+
+            shared_ptr<AsyncFdOutputSink> stdinCopy = stdInSink_;
+            auto stdinCb = [=] (const epoll_event & event) {
+                stdinCopy->processOne();
+            };
+            addFd(stdInSink_->selectFd(), true, false, stdinCb);
+        }
         auto statusCb = [&] (const epoll_event & event) {
             handleChildStatus(event);
         };
@@ -606,34 +506,6 @@ signal(int signum, bool mustSucceed)
     
     ::kill(childPid_, signum);
     return true;
-}
-
-bool
-Runner::
-waitRunning(double secondsToWait) const
-{
-    bool timeout(false);
-
-    Date deadline = Date::now().plusSeconds(secondsToWait);
-    while (true) {
-        int currentActive(activeRequest_);
-        if (currentActive >= runRequests_) {
-            break;
-        }
-        double timeToWait = Date::now().secondsUntil(deadline);
-        if (isfinite(timeToWait)) {
-            if (timeToWait < 0) {
-                timeout = true;
-                break;
-            }
-            ML::futex_wait(activeRequest_, currentActive, timeToWait);
-        }
-        else {
-            ML::futex_wait(activeRequest_, currentActive);
-        }
-    }
-
-    return !timeout;
 }
 
 bool
@@ -692,90 +564,64 @@ void
 Runner::Task::
 runWrapper(const vector<string> & command, ProcessFds & fds)
 {
-    // Find runner_helper path
-    string runnerHelper = findRunnerHelper();
+    static const char * appendStr = "../../../" BIN "/runner_helper";
 
-    vector<string> preArgs = { /*"gdb", "--tty", "/dev/pts/48", "--args"*/ /*"../strace-code/strace", "-b", "execve", "-ftttT", "-o", "runner_helper.strace"*/ };
+    auto dieWithErrno = [&] (const char * message) {
+        ProcessStatus status;
 
+        status.state = ProcessState::STOPPED;
+        status.setErrorCodes(errno, LaunchError::SUBTASK_LAUNCH);
+        fds.writeStatus(status);
+
+        throw ML::Exception(errno, message);
+    };
+
+    /* We need to deduce the absolute path to the helper by using the current
+       program as reference. The trick is to read the value of the
+       "/proc/self/exe" link and then to substitute the current program name
+       with a relative path to the helper program. */
+    char exeBuffer[16384];
+    ssize_t len = ::readlink("/proc/self/exe",
+                             exeBuffer, sizeof(exeBuffer) - 1);
+    if (len == -1) {
+        dieWithErrno("determining current program");
+    }
+
+    /* Since readlink does not return a null-terminated string, we need to add
+       one by hand if we want to avoid buffer problems with strrchr. */
+    exeBuffer[len] = '\0';
+    char * slash = ::strrchr(exeBuffer, '/');
+    slash++;
+    size_t appendSize = ::strlen(appendStr);
+    if (slash + appendSize > (exeBuffer + sizeof(exeBuffer) - 2)) {
+        dieWithErrno("preparing program value");
+    }
+    ::memcpy(slash, appendStr, appendSize);
+    slash[appendSize] = '\0';
 
     // Set up the arguments before we fork, as we don't want to call malloc()
     // from the fork, and it can be called from c_str() in theory.
-    auto len = command.size();
-    char * argv[len + 3 + preArgs.size()];
+    len = command.size();
+    char * argv[len + 3];
 
-    for (unsigned i = 0;  i < preArgs.size();  ++i)
-        argv[i] = (char *)preArgs[i].c_str();
-
-    int idx = preArgs.size();
-
-    argv[idx++] = (char *) runnerHelper.c_str();
+    argv[0] = exeBuffer;
 
     size_t channelsSize = 4*2*4+3+1;
     char channels[channelsSize];
     fds.encodeToBuffer(channels, channelsSize);
-    argv[idx++] = channels;
+    argv[1] = channels;
 
     for (int i = 0; i < len; i++) {
-        argv[idx++] = (char *) command[i].c_str();
+        argv[2+i] = (char *) command[i].c_str();
     }
-    argv[idx++] = nullptr;
+    argv[2+len] = nullptr;
 
-    std::vector<char *> env;
-
-    char * const * p = environ;
-
-    while (*p) {
-        env.push_back(*p);
-        ++p;
-    }
-
-    env.push_back(nullptr);
-
-    char * const * envp = &env[0];
-
-    int res = execve(argv[0], argv, envp);
+    int res = execv(argv[0], argv);
     if (res == -1) {
-        throw ML::Exception(errno, "launching runner helper");
+        dieWithErrno("launching runner helper");
     }
 
     throw ML::Exception("You are the King of Time!");
-}
-
-string
-Runner::Task::
-findRunnerHelper()
-{
-    string runnerHelper = Runner::runnerHelper;
-
-    if (runnerHelper.empty()) {
-        static string staticHelper;
-
-        if (staticHelper.empty()) {
-            string binDir;
-            char * cBin = ::getenv("BIN");
-            if (cBin) {
-                binDir = cBin;
-            }
-            if (binDir.empty()) {
-                char binBuffer[16384];
-                char * res = ::getcwd(binBuffer, 16384);
-                ExcAssert(res != NULL);
-                binDir = res;
-                binDir += "/" BIN;
-            }
-            staticHelper = binDir + "/runner_helper";
-
-            // Make sure the deduced path is right
-            struct stat sb;
-            int res = ::stat(staticHelper.c_str(), &sb);
-            if (res != 0) {
-                throw ML::Exception(errno, "checking static helper");
-            }
-        }
-        runnerHelper = staticHelper;
-    }
-
-    return runnerHelper;
 }
 
 /* This method *must* be called from attemptTaskTermination, in order to
@@ -827,9 +673,12 @@ postTerminate(Runner & runner)
     unregisterFd(stdErrFd);
 
     command.clear();
+
+    if (onTerminate) {
+        onTerminate(runResult);
+        onTerminate = nullptr;
+    }
     runResult = RunResult();
-    onTerminate = nullptr;
-    statusState = ProcessState::UNKNOWN;
 }
 
 
@@ -886,14 +735,6 @@ processStatus()
 
 void
 RunResult::
-updateFromLaunchException(const std::exception_ptr & excPtr)
-{
-    state = LAUNCH_EXCEPTION;
-    launchExc = excPtr;
-}
-
-void
-RunResult::
 updateFromLaunchError(int launchErrno,
                       const std::string & launchError)
 {
@@ -915,11 +756,9 @@ to_string(const RunResult::State & state)
 {
     switch (state) {
     case RunResult::UNKNOWN: return "UNKNOWN";
-    case RunResult::LAUNCH_EXCEPTION: return "LAUNCH_EXCEPTION";
     case RunResult::LAUNCH_ERROR: return "LAUNCH_ERROR";
     case RunResult::RETURNED: return "RETURNED";
     case RunResult::SIGNALED: return "SIGNALED";
-    case RunResult::PARENT_EXITED: return "PARENT_EXITED";
     }
 
     return ML::format("RunResult::State(%d)", state);
@@ -956,7 +795,6 @@ RunResultStateDescription()
              "Command was unable to be launched");
     addValue("RETURNED", RunResult::RETURNED, "Command returned");
     addValue("SIGNALED", RunResult::SIGNALED, "Command exited with a signal");
-    addValue("PARENT_EXITED", RunResult::PARENT_EXITED, "Parent process exited forcing child to die");
 }
 
 

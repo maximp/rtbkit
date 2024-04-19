@@ -32,8 +32,6 @@ struct RouterRunner {
 
     std::string exchangeConfigurationFile;
     std::string bidderConfigurationFile;
-    std::string filterConfigurationFile;
-    std::string analyticsConfigurationFile;
 
     float lossSeconds;
     bool noPostAuctionLoop;
@@ -52,10 +50,8 @@ struct RouterRunner {
     int slowModeTolerance;
 
     std::string slowModeMoneyLimit;
-    bool analyticsPublisherOn;
-    int analyticsPublisherConnections;
-    int augmentationWindowms;
-    bool dableSlowMode;
+    bool analyticsOn;
+    int analyticsConnections;
 
     void doOptions(int argc, char ** argv,
                    const boost::program_options::options_description & opts
@@ -66,6 +62,8 @@ struct RouterRunner {
     std::shared_ptr<SlaveBanker> slaveBanker;
     std::shared_ptr<LocalBanker> localBanker;
     std::shared_ptr<Router> router;
+    Json::Value exchangeConfig;
+    Json::Value bidderConfig;
 
     static Logging::Category print;
     static Logging::Category trace;
