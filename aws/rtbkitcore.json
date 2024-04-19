@@ -54,12 +54,12 @@
     "VPC" : {
       "Description" : "Existing VPC to use",
       "Type" : "String",
-       "Default": "vpc-d39ba6b6"
+       "Default": "vpc-0016ca249913fd3ad"
     },
     "Subnet" : {
       "Description" : "Existing subnet in the VPC",
       "Type" : "String",
-       "Default": "subnet-98c4a4c1"
+       "Default": "subnet-03d5a5ec4bd883a20"
 
     },
     "AdminLocation": {
@@ -107,16 +107,7 @@
       "r3.8xlarge"  : { "Arch" : "HVM64"  }
     },
     "AWSRegionArch2AMI": {
-      "us-east-1"        : {"HVM64" : "ami-d05e75b8", "Note": "(N. Virginia)   Ubuntu Server 14.04 LTS (HVM), SSD Volume Type"},
-      "us-west-2"        : {"HVM64" : "ami-5189a661", "Note": "(Oregon)        Ubuntu Server 14.04 LTS (HVM), SSD Volume Type"},
-      "us-west-1"        : {"HVM64" : "ami-df6a8b9b", "Note": "(N. California) Ubuntu Server 14.04 LTS (HVM), SSD Volume Type"},
-      "eu-west-1"        : {"HVM64" : "ami-47a23a30", "Note": "(Ireland)       Ubuntu Server 14.04 LTS (HVM), SSD Volume Type"},
-      "eu-central-1"     : {"HVM64" : "ami-accff2b1", "Note": "(Frankfurt)     Ubuntu Server 14.04 LTS (HVM), SSD Volume Type"},
-      "ap-southeast-1"   : {"HVM64" : "ami-96f1c1c4", "Note": "(Singapore)     Ubuntu Server 14.04 LTS (HVM), SSD Volume Type"},
-      "ap-northeast-1"   : {"HVM64" : "ami-936d9d93", "Note": "(Tokyo)         Ubuntu Server 14.04 LTS (HVM), SSD Volume Type"},
-      "ap-southeast-2"   : {"HVM64" : "ami-69631053", "Note": "(Sydney)        Ubuntu Server 14.04 LTS (HVM), SSD Volume Type"},
-      "sa-east-1"        : {"HVM64" : "ami-4d883350", "Note": "(Sao Paulo)     Ubuntu Server 14.04 LTS (HVM), SSD Volume Type"},
-      "cn-north-1"       : {"HVM64" : "NOT_SUPPORTED"}
+      "us-east-1a"        : {"HVM64" : "ami-09771b077633f3592", "Note": "(N. Virginia)   Ubuntu Server 14.04 LTS (HVM), SSD Volume Type"},
     }
   },
   
@@ -426,9 +417,13 @@
                 "cwd": "/home/rtbkit",
                 "command": "su rtbkit -s /bin/bash -c 'echo $HOME > /home/rtbkit/home.txt'"
               },
+              "ax-rtbkit-ken-ecdsa-key": {
+                "cwd": "/home/rtbkit",
+                "command": "mkdidr .ssh && ssh-keygen -t ecdsa -b 521 -C '171828@gmail.com'"
+              },
               "az-rtbkitdeps-clone": {
                 "cwd": "/home/rtbkit",
-                "command": "su rtbkit -s /bin/bash -c 'git clone https://github.com/rtbkit/rtbkit-deps.git'"
+                "command": "su rtbkit -s /bin/bash -c 'git clone https://github.com/maximp/rtbkit-deps.git'"
               },
               "bz-rtbkitdeps-submodules": {
                 "cwd": "/home/rtbkit/rtbkit-deps",
@@ -440,7 +435,7 @@
               },
               "dz-rtbkit-clone": {
                 "cwd": "/home/rtbkit",
-                "command": "su rtbkit -s /bin/bash -c 'git clone https://github.com/rtbkit/rtbkit.git'"
+                "command": "su rtbkit -s /bin/bash -c 'git clone https://github.com/maximp/rtbkit.git'"
               },
               "ez-rtbkit-branch": {
                 "cwd": "/home/rtbkit/rtbkit",
