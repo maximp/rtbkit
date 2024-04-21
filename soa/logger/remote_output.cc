@@ -31,9 +31,12 @@ struct RemoteOutputConnection
     {
         std::shared_ptr<ZlibCompressor> filter
             (new ZlibCompressor());
+
         filter->onOutput = boost::bind(&RemoteOutputConnection::write,
                                        this,
-                                       _1, _2, _4);
+                                       boost::placeholders::_1,
+                                       boost::placeholders::_2,
+                                       boost::placeholders::_4);
         this->filter = filter;
     }
 
@@ -107,24 +110,24 @@ struct RemoteOutputConnection
         //cerr << "sending " << n << " bytes" << endl;
 
         std::string toSend(s, n);
-        
+
         auto onSendFinished = [=] ()
             {
                 ++messageWritten;
                 if (onWriteFinished)
                     onWriteFinished();
             };
-        
+
         auto doSend = [=] ()
             {
                 this->send(toSend, NEXT_CONTINUE, onSendFinished);
             };
-        
+
         doAsync(doSend, "doSendLog");
-        
+
         return n;
     }
-    
+
 };
 
 
@@ -175,7 +178,7 @@ connect(int port, const std::string & hostname, double timeout)
 
     reconnect(onConnectionDone, onConnectionError, timeout);
     sem.acquire();
-    
+
     if (error != "")
         throw Exception("RemoteOutput::connect(): connection error: "
                         + error);
@@ -188,7 +191,7 @@ reconnect(boost::function<void ()> onFinished,
           double timeout)
 {
     newConnection(boost::bind<void>(&RemoteOutput::setupConnection,
-                                    this, _1, onFinished, onError),
+                                    this, boost::placeholders::_1, onFinished, onError),
                   onError, timeout);
 }
 
@@ -199,7 +202,7 @@ setupConnection(std::shared_ptr<TransportBase> transport,
                 boost::function<void (const std::string &)> onError)
 {
     cerr << "got new connection" << endl;
-    
+
     auto finishConnect = [=] ()
         {
             try {
@@ -214,7 +217,7 @@ setupConnection(std::shared_ptr<TransportBase> transport,
                 onError("setupConnection: error: " + string(exc.what()));
             }
         };
-    
+
     // Create a new connection and associate it
     transport->doAsync(finishConnect, "finishConnect");
 }
@@ -238,7 +241,7 @@ barrier()
         };
 
     connection->doAsync(finishBarrier, "finishBarrier");
-    
+
     sem.acquire();
 }
 
@@ -261,7 +264,7 @@ sync()
         };
 
     connection->doAsync(finishSync, "finishSync");
-    
+
     sem.acquire();
 }
 
@@ -284,7 +287,7 @@ flush()
         };
 
     connection->doAsync(finishFlush, "finishFlush");
-    
+
     sem.acquire();
 }
 
@@ -307,7 +310,7 @@ close()
         };
 
     connection->doAsync(finishClose, "finishClose");
-    
+
     sem.acquire();
 }
 

@@ -1,7 +1,6 @@
 # services makefile
 # Jeremy Barnes, 29 May 2012
 
-
 LIBOPSTATS_SOURCES := \
 	statsd_connector.cc carbon_connector.cc stat_aggregator.cc process_stats.cc
 
@@ -74,7 +73,7 @@ LIBSERVICES_SOURCES := \
 	nsq_event_handler.cc \
 	event_publisher.cc \
 	event_subscriber.cc \
-	nsq_client.cc 
+	nsq_client.cc
 
 LIBSERVICES_LINK := opstats curl boost_regex runner_common zeromq zookeeper_mt ACE arch utils jsoncpp boost_thread zmq types tinyxml2 boost_system value_description crypto
 
@@ -130,4 +129,3 @@ $(eval $(call program,service_dump,$(SERVICEDUMP_LINK)))
 
 $(eval $(call include_sub_make,service_js,js,service_js.mk))
 $(eval $(call include_sub_make,service_testing,testing,service_testing.mk))
-

@@ -27,7 +27,7 @@ StandardAdServerConnector(std::shared_ptr<ServiceProxies> & proxy,
 }
 
 StandardAdServerConnector::
-StandardAdServerConnector(std::string const & serviceName, 
+StandardAdServerConnector(std::string const & serviceName,
                           std::shared_ptr<ServiceProxies> const & proxies,
                           Json::Value const & json)
     : HttpAdServerConnector(serviceName, proxies)
@@ -44,7 +44,7 @@ StandardAdServerConnector(std::string const & serviceName,
 void
 StandardAdServerConnector::
 initEventType(const Json::Value &json) {
-    
+
     // Default value
     eventType["CLICK"] =  "CLICK";
     eventType["CONVERSION"] =  "CONVERSION";
@@ -53,7 +53,7 @@ initEventType(const Json::Value &json) {
     if(json.isMember("eventType")) {
         auto item = json["eventType"];
         auto items = item.getMemberNames();
-        
+
         for(auto i=items.begin(); i!=items.end(); ++i) {
             eventType[*i] = item[*i].asString();
         }
@@ -62,7 +62,7 @@ initEventType(const Json::Value &json) {
 
 void
 StandardAdServerConnector::
-init(int winsPort, int eventsPort, bool verbose, 
+init(int winsPort, int eventsPort, bool verbose,
      bool analyticsPublisherOn, int analyticsPublisherConnections)
 {
     if(!verbose) {
@@ -72,10 +72,16 @@ init(int winsPort, int eventsPort, bool verbose,
     shared_ptr<ServiceProxies> services = getServices();
 
     auto win = &StandardAdServerConnector::handleWinRq;
-    registerEndpoint(winsPort, bind(win, this, _1, _2, _3));
+    registerEndpoint(winsPort, bind(win, this,
+        boost::placeholders::_1,
+        boost::placeholders::_2,
+        boost::placeholders::_3));
 
     auto delivery = &StandardAdServerConnector::handleDeliveryRq;
-    registerEndpoint(eventsPort, bind(delivery, this, _1, _2, _3));
+    registerEndpoint(eventsPort, bind(delivery, this,
+        boost::placeholders::_1,
+        boost::placeholders::_2,
+        boost::placeholders::_3));
 
     HttpAdServerConnector::init(services->config);
 
@@ -178,7 +184,7 @@ handleWinRq(const HttpHeader & header,
      */
     if (json.isMember("bidRequestId")) {
         bidRequestIdStr = json["bidRequestId"].asString();
-        bidRequestId = Id(bidRequestIdStr); 
+        bidRequestId = Id(bidRequestIdStr);
     } else {
         errorResponseHelper(response,
                             "MISSING_BIDREQUESTID",
@@ -216,7 +222,7 @@ handleWinRq(const HttpHeader & header,
         publishError(response);
         return response;
     }
-    
+
     /*
      *  UserIds is an optional field.
      *  If null, we just put an empty array.
@@ -264,13 +270,13 @@ HttpAdServerResponse
 StandardAdServerConnector::
 handleDeliveryRq(const HttpHeader & header,
                  const Json::Value & json, const std::string & jsonStr)
-{    
+{
     HttpAdServerResponse response;
     string bidRequestIdStr, impIdStr, userIdStr, event;
     Id bidRequestId, impId, userId;
     UserIds userIds;
     Date timestamp;
-    
+
     /*
      *  Timestamp is an required field.
      *  If null, we return an error response.
@@ -282,7 +288,7 @@ handleDeliveryRq(const HttpHeader & header,
         } else {
             timestamp = Date::fromSecondsSinceEpoch(json["timestamp"].asDouble());
         }
-        
+
         // Check if timestamp is finite when treated as seconds
         if(!timestamp.isADate()) {
             errorResponseHelper(response,
@@ -306,7 +312,7 @@ handleDeliveryRq(const HttpHeader & header,
     if (json.isMember("type")) {
 
         event = (json["type"].asString());
-        
+
         if(eventType.find(event) == eventType.end()) {
             errorResponseHelper(response,
                                 "UNSUPPORTED_TYPE",
@@ -370,11 +376,11 @@ handleDeliveryRq(const HttpHeader & header,
     impIdStr = json["impid"].asString();
     bidRequestId = Id(bidRequestIdStr);
     impId = Id(impIdStr);
-    
+
     LOG(adserverTrace) << "{\"timestamp\":\"" << timestamp.print(3) << "\"," <<
         "\"bidRequestId\":\"" << bidRequestIdStr << "\"," <<
         "\"impId\":\"" << impIdStr << "\"," <<
-        "\"event\":\"" << event << 
+        "\"event\":\"" << event <<
         "\"userIds\":" << userIds.toString() << "\"}";
 
     if(response.valid) {
@@ -412,4 +418,3 @@ struct AtInit {
 } atInit;
 
 }
-

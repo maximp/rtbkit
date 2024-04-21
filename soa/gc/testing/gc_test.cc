@@ -595,7 +595,8 @@ BOOST_AUTO_TEST_CASE ( test_gc_sync_many_threads_contention )
     int nblocks = 2;
 
     TestBase<GcLock> test(nthreads, nblocks, nSpinThreads);
-    test.run(boost::bind(&TestBase<GcLock>::allocThreadSync, &test, _1));
+    test.run(boost::bind(&TestBase<GcLock>::allocThreadSync, &test,
+boost::placeholders::_1));
 }
 #endif
 
@@ -608,7 +609,8 @@ BOOST_AUTO_TEST_CASE ( test_gc_deferred_contention )
     int nblocks = 2;
 
     TestBase<GcLock> test(nthreads, nblocks, nSpinThreads);
-    test.run(boost::bind(&TestBase<GcLock>::allocThreadDefer, &test, _1));
+    test.run(boost::bind(&TestBase<GcLock>::allocThreadDefer, &test,
+boost::placeholders::_1));
 }
 
 
@@ -622,7 +624,8 @@ BOOST_AUTO_TEST_CASE ( test_gc_sync )
     int nblocks = 2;
 
     TestBase<GcLock> test(nthreads, nblocks);
-    test.run(boost::bind(&TestBase<GcLock>::allocThreadSync, &test, _1));
+    test.run(boost::bind(&TestBase<GcLock>::allocThreadSync, &test,
+boost::placeholders::_1));
 }
 
 BOOST_AUTO_TEST_CASE ( test_gc_sync_many_threads )
@@ -633,7 +636,8 @@ BOOST_AUTO_TEST_CASE ( test_gc_sync_many_threads )
     int nblocks = 2;
 
     TestBase<GcLock> test(nthreads, nblocks);
-    test.run(boost::bind(&TestBase<GcLock>::allocThreadSync, &test, _1));
+    test.run(boost::bind(&TestBase<GcLock>::allocThreadSync, &test,
+boost::placeholders::_1));
 }
 
 BOOST_AUTO_TEST_CASE ( test_gc_deferred )
@@ -644,7 +648,8 @@ BOOST_AUTO_TEST_CASE ( test_gc_deferred )
     int nblocks = 2;
 
     TestBase<GcLock> test(nthreads, nblocks);
-    test.run(boost::bind(&TestBase<GcLock>::allocThreadDefer, &test, _1));
+    test.run(boost::bind(&TestBase<GcLock>::allocThreadDefer, &test,
+boost::placeholders::_1));
 }
 
 
@@ -669,7 +674,8 @@ BOOST_AUTO_TEST_CASE( test_shared_lock_sync )
 
     TestBase<SharedGcLockProxy> test(nthreads, nblocks, nSpinThreads);
     test.run(boost::bind(
-                    &TestBase<SharedGcLockProxy>::allocThreadSync, &test, _1));
+                    &TestBase<SharedGcLockProxy>::allocThreadSync, &test,
+boost::placeholders::_1));
 
 }
 
@@ -686,7 +692,8 @@ BOOST_AUTO_TEST_CASE( test_shared_lock_defer )
 
     TestBase<SharedGcLockProxy> test(nthreads, nblocks, nSpinThreads);
     test.run(boost::bind(
-                    &TestBase<SharedGcLockProxy>::allocThreadSync, &test, _1));
+                    &TestBase<SharedGcLockProxy>::allocThreadSync, &test,
+boost::placeholders::_1));
 }
 
 BOOST_AUTO_TEST_CASE ( test_defer_race )

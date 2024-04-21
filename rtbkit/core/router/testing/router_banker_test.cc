@@ -1,7 +1,7 @@
 /* router_banker_test.cc
    Sunil Rottoo, 4th April 2012
    Copyright (c) 2012 Datacratic.  All rights reserved.
-   
+
    Test for the banker class when used in the router.
  */
 
@@ -117,21 +117,35 @@ struct TestAgent: public BiddingAgent {
     void setupCallbacks()
     {
         onError
-            = boost::bind(&TestAgent::defaultError, this, _1, _2, _3);
+            = boost::bind(&TestAgent::defaultError, this,
+boost::placeholders::_1,
+boost::placeholders::_2,
+boost::placeholders::_3);
         onNeedConfig
-            = boost::bind(&TestAgent::defaultNeedConfig, this, _1);
+            = boost::bind(&TestAgent::defaultNeedConfig, this,
+boost::placeholders::_1);
         onGotConfig
-            = boost::bind(&TestAgent::defaultGotConfig, this, _1);
+            = boost::bind(&TestAgent::defaultGotConfig, this,
+boost::placeholders::_1);
         onAckHeartbeat
-            = boost::bind(&TestAgent::defaultAckHeartbeat, this, _1);
+            = boost::bind(&TestAgent::defaultAckHeartbeat, this,
+boost::placeholders::_1);
          onWin
-            = boost::bind(&TestAgent::defaultWin, this, _1);
+            = boost::bind(&TestAgent::defaultWin, this,
+boost::placeholders::_1);
         onLoss
-            = boost::bind(&TestAgent::defaultLoss, this, _1);
+            = boost::bind(&TestAgent::defaultLoss, this,
+boost::placeholders::_1);
         onNoBudget
-            = boost::bind(&TestAgent::defaultNoBudget, this, _1);
+            = boost::bind(&TestAgent::defaultNoBudget, this,
+boost::placeholders::_1);
         onBidRequest
-             = boost::bind(&TestAgent::defaultBid, this, _1, _2, _3, _4, _5);
+             = boost::bind(&TestAgent::defaultBid, this,
+boost::placeholders::_1,
+boost::placeholders::_2,
+boost::placeholders::_3,
+boost::placeholders::_4,
+boost::placeholders::_5);
     }
 
     void configure()
@@ -536,4 +550,3 @@ BOOST_AUTO_TEST_CASE( test_banker_via_router )
             << endl;
     tester.shutdown();
 }
-

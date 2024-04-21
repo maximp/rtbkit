@@ -41,10 +41,10 @@ hmacDigest(const std::string & stringToSign,
            const std::string & accessKey)
 {
     size_t digestLen = Hash::DIGESTSIZE;
-    byte digest[digestLen];
-    CryptoPP::HMAC<Hash> hmac((byte *)accessKey.c_str(), accessKey.length());
+    CryptoPP::byte digest[digestLen];
+    CryptoPP::HMAC<Hash> hmac((const CryptoPP::byte *)accessKey.c_str(), accessKey.length());
     hmac.CalculateDigest(digest,
-                         (byte *)stringToSign.c_str(),
+                         (const CryptoPP::byte *)stringToSign.c_str(),
                          stringToSign.length());
 
     return std::string((const char *)digest,
@@ -73,12 +73,12 @@ sha256Digest(const std::string & stringToSign)
 {
     typedef CryptoPP::SHA256 Hash;
     size_t digestLen = Hash::DIGESTSIZE;
-    byte digest[digestLen];
+    CryptoPP::byte digest[digestLen];
     Hash h;
     h.CalculateDigest(digest,
-                      (byte *)stringToSign.c_str(),
+                      (const CryptoPP::byte *)stringToSign.c_str(),
                       stringToSign.length());
-    
+
     return std::string((const char *)digest,
                        digestLen);
 }
@@ -88,12 +88,12 @@ std::string
 AwsApi::
 encodeDigest(const std::string & digest)
 {
-    char outBuf[256];
+    CryptoPP::byte outBuf[256];
 
     Encoder encoder;
-    encoder.Put((byte *)digest.c_str(), digest.size());
+    encoder.Put((const CryptoPP::byte *)digest.c_str(), digest.size());
     encoder.MessageEnd();
-    size_t got = encoder.Get((byte *)outBuf, 256);
+    size_t got = encoder.Get(outBuf, 256);
     outBuf[got] = 0;
 
     //cerr << "signing " << digest.size() << " characters" << endl;
@@ -141,7 +141,7 @@ getStringToSignV2Multi(const std::string & verb,
             canonHeaders[key] += ",";
         canonHeaders[key] += value;
     }
-    
+
     return getStringToSignV2(verb, bucket, resource, subResource,
                              contentType, contentMd5, date, canonHeaders);
 }
@@ -267,7 +267,7 @@ signingKeyV4(const std::string & accessKey,
         {
             return hmacSha256Digest(data, key);
         };
-    
+
     string signingKey
         = hmac(hmac(hmac(hmac("AWS4" + accessKey,
                               date),
@@ -286,7 +286,7 @@ signV4(const std::string & stringToSign,
        const std::string & service,
        const std::string & signing)
 {
-    
+
     string signingKey = signingKeyV4(accessKey, date, region, service, signing);
     //cerr << "signingKey " << hexEncodeDigest(signingKey) << endl;
     return hexEncodeDigest(hmacSha256Digest(stringToSign, signingKey));
@@ -317,7 +317,7 @@ addSignatureV4(BasicRequest & request,
             boost::trim(h.second);
         }
         std::sort(headers.begin(), headers.end());
-        
+
         for (auto h: headers) {
             canonicalHeaders += h.first + ":" + h.second + "\n";
             signedHeaders += h.first + ";";
@@ -331,7 +331,7 @@ addSignatureV4(BasicRequest & request,
     if (!request.queryParams.empty()) {
         RestParams queryParams = request.queryParams;
         std::sort(queryParams.begin(), queryParams.end());
-        
+
         for (auto h: queryParams)
             canonicalQueryParams += uriEncode(h.first) + "=" + uriEncode(h.second) + "&";
 
@@ -341,7 +341,7 @@ addSignatureV4(BasicRequest & request,
     //cerr << "payload = " << request.payload << endl;
 
     string payloadHash = hexEncodeDigest(sha256Digest(request.payload));
-    
+
     string canonicalRequest
         = request.method + "\n"
         + "/" + request.relativeUri + "\n"
@@ -377,15 +377,15 @@ addSignatureV4(BasicRequest & request,
 
 
     string credentialScope = string(dateStr, 0, 8) + "/" + region + "/" + service + "/" + "aws4_request";
-    
+
     addParam("Credential", accessKeyId + "/" + credentialScope);
     addParam("SignedHeaders", signedHeaders);
-    
+
     //addParam("SignatureVersion", "4");
     //addParam("SignatureMethod", "AWS4-HMAC-SHA256");
 
     string hashedCanonicalRequest = hexEncodeDigest(sha256Digest(canonicalRequest));
-    
+
     string stringToSign
         = "AWS4-HMAC-SHA256\n"
         + dateStr + "\n"
@@ -421,7 +421,7 @@ AwsBasicApi(const std::string & accessKeyId,
               const std::string & service,
               const std::string & serviceUri = "",
               const std::string & region = "us-east-1");
-              
+
     std::string accessKeyId;
     std::string accessKey;
     std::string serviceUri;
@@ -497,7 +497,7 @@ signPost(RestParams && params, const std::string & resource)
     //cerr << "encodedPayload = " << encodedPayload << endl;
 
     result.payload = encodedPayload;
-    
+
     addSignatureV4(result, serviceName, region, accessKeyId, accessKey);
 
     return result;

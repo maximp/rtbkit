@@ -151,12 +151,16 @@ checkExpiredAuctions()
 
     recordLevel(submitted.size(), "submittedSize");
     submitted.expire(
-            std::bind(&SimpleEventMatcher::expireSubmitted, this, now, _1, _2),
+            std::bind(&SimpleEventMatcher::expireSubmitted, this, now,
+                    std::placeholders::_1,
+                    std::placeholders::_2),
             now);
 
     recordLevel(finished.size(), "finishedSize");
     finished.expire(
-            std::bind(&SimpleEventMatcher::expireFinished, this, _1, _2),
+            std::bind(&SimpleEventMatcher::expireFinished, this,
+                std::placeholders::_1,
+                std::placeholders::_2),
             now);
 
     banker->logBidEvents(*this);
@@ -623,8 +627,6 @@ doBidResult(
 /******************************************************************************/
 // Needs to be properly tested before enabling.
 
-namespace {
-
 std::pair<Id, Id>
 unstringifyPair(const std::string & str)
 {
@@ -648,8 +650,6 @@ std::string stringifyPair(const std::pair<Id, Id> & vals)
 
     return stream.str();
 }
-
-} // file scope
 
 
 #if 0 // Persistence layer that needs to be reworked.

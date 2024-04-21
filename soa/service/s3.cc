@@ -74,7 +74,7 @@ struct S3UrlFsHandler : public UrlFsHandler {
             api->eraseObject(bucket, "/" + bucketPath.second);
             return true;
         }
-        else { 
+        else {
             return api->tryEraseObject(bucket, "/" + bucketPath.second);
         }
     }
@@ -155,7 +155,7 @@ s3EscapeResource(const std::string & str)
             result += c;
         else result += ML::format("%%%02X", c);
     }
-    
+
     return result;
 }
 
@@ -214,7 +214,7 @@ S3Api::init()
     }
     if (keyId == "" || key == "")
         throw ML::Exception("Cannot init S3 API with no keys, environment or creedentials file");
-    
+
     this->init(keyId, key);
 }
 
@@ -463,9 +463,9 @@ signature(const RequestParams & request) const
                                         request.resource, request.subResource,
                                         request.contentType, request.contentMd5,
                                         request.date, request.headers);
-    
+
     //cerr << "digest = " << digest << endl;
-    
+
     return signV2(digest, accessKey);
 }
 
@@ -684,7 +684,7 @@ S3Api::isMultiPartUploadInProgress(
     vector<MultiPartUploadPart> parts;
 
 
-    for (; upload; upload = upload->NextSiblingElement("Upload")) 
+    for (; upload; upload = upload->NextSiblingElement("Upload"))
     {
         XMLHandle uploadHandle(upload);
 
@@ -746,7 +746,7 @@ obtainMultiPartUpload(const std::string & bucket,
 
             if (key != outputPrefix)
                 continue;
-        
+
             // Already an upload in progress
             string uploadId = extract<string>(upload, "UploadId");
 
@@ -1161,7 +1161,7 @@ forEachObject(const std::string & bucket,
     // bool firstIter = true;
     do {
         //cerr << "Starting at " << marker << endl;
-        
+
         RestParams queryParams;
         if (prefix != "")
             queryParams.push_back({"prefix", prefix});
@@ -1435,7 +1435,7 @@ tryEraseObject(const std::string & bucket,
                const std::string & object)
 {
     Response response = erase(bucket, object);
-    
+
     if (response.code_ != 200) {
         return false;
     }
@@ -1642,7 +1642,7 @@ struct StreamingDownloadSource {
             numThreads = 3;
         if (impl->info.size > 256 * 1024 * 1024)
             numThreads = 5;
-        
+
         impl->start(numThreads);
     }
 
@@ -1730,7 +1730,7 @@ struct StreamingDownloadSource {
             for (int i = 0; i < numThreads; i++) {
                 threadQueues.emplace_back(2);
             }
-            
+
             /* ensure that the queues are ready before the threads are
                launched */
             ML::memory_barrier();
@@ -2032,7 +2032,7 @@ struct StreamingUploadSource {
         };
 
         Chunk current;
-        
+
         RingBufferSWMR<Chunk> chunks;
 
         std::mutex etagsLock;
@@ -2054,7 +2054,7 @@ struct StreamingUploadSource {
             }
 
             uploadId = upload.id;
-            //cerr << "uploadId = " << uploadId << " with " << metadata.numThreads 
+            //cerr << "uploadId = " << uploadId << " with " << metadata.numThreads
             //<< "threads!!! " << endl;
 
             startDate = Date::now();
@@ -2468,7 +2468,7 @@ struct RegisterS3Handler {
     static std::pair<std::streambuf *, bool>
     getS3Handler(const std::string & scheme,
                  const std::string & resource,
-                 std::ios_base::open_mode mode,
+                 std::ios_base::openmode mode,
                  const std::map<std::string, std::string> & options,
                  const ML::OnUriHandlerException & onException)
     {
@@ -2574,7 +2574,7 @@ tuple<string, string, string, string, string> getCloudCredentials()
                      << line << endl;
                 continue;
             }
-                
+
             fields.resize(7);
 
             string version = fields[1];
@@ -2584,7 +2584,7 @@ tuple<string, string, string, string, string> getCloudCredentials()
                      << line << endl;
                 continue;
             }
-                
+
             string keyId = fields[2];
             string key = fields[3];
             string bandwidth = fields[4];
@@ -2638,7 +2638,7 @@ void registerDefaultBuckets()
     std::unique_lock<std::mutex> guard(registerBucketsMutex);
     defaultBucketsRegistered = true;
 
-    tuple<string, string, string, string, string> cloudCredentials = 
+    tuple<string, string, string, string, string> cloudCredentials =
         getCloudCredentials();
     if (get<0>(cloudCredentials) != "") {
         string keyId      = get<0>(cloudCredentials);

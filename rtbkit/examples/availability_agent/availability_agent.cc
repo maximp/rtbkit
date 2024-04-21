@@ -34,7 +34,13 @@ AvailabilityAgent(
 {
     proxy.strictMode(false);
     proxy.onBidRequest = boost::bind(
-            &AvailabilityAgent::onBidRequest, this, _1, _2, _3, _4, _5, _6);
+            &AvailabilityAgent::onBidRequest, this,
+                    boost::placeholders::_1,
+                    boost::placeholders::_2,
+                    boost::placeholders::_3,
+                    boost::placeholders::_4,
+                    boost::placeholders::_5,
+                    boost::placeholders::_6);
 
     proxy.onError = [&](double ts, string desc, vector<string> err) {
         cerr << "ERROR: (" << ts << ", " << desc << ") -> { ";

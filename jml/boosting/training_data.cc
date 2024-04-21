@@ -14,6 +14,7 @@
 #include "jml/utils/filter_streams.h"
 #include "jml/utils/vector_utils.h"
 #include "jml/utils/sgi_numeric.h"
+#define BOOST_TIMER_ENABLE_DEPRECATED 1
 #include <boost/progress.hpp>
 #include "jml/db/persistent.h"
 #include "jml/utils/hash_map.h"
@@ -53,21 +54,21 @@ Training_Data::Training_Data(const Training_Data & other)
 Training_Data::~Training_Data()
 {
 }
-    
+
 void Training_Data::
 init(std::shared_ptr<const Feature_Space> feature_space)
 {
     feature_space_ = feature_space;
     clear();
 }
-    
+
 void Training_Data::clear()
 {
     data_.clear();
     index_.reset();
     dirty_ = false;
 }
-    
+
 void Training_Data::swap(Training_Data & other)
 {
     std::swap(data_, other.data_);
@@ -75,7 +76,7 @@ void Training_Data::swap(Training_Data & other)
     std::swap(feature_space_, other.feature_space_);
     std::swap(dirty_, other.dirty_);
 }
-    
+
 std::vector<Feature>
 Training_Data::all_features() const
 {
@@ -114,7 +115,7 @@ void Training_Data::save(const std::string & filename) const
     Store_Writer store(filename);
     serialize(store);
 }
-    
+
 void Training_Data::reconstitute(DB::Store_Reader & store)
 {
     string id;
@@ -134,19 +135,19 @@ void Training_Data::reconstitute(DB::Store_Reader & store)
             feature_space()->reconstitute(store, ex);
             add_example(ex);
         }
-        
+
         compact_size_t marker(store);
         if (marker != 12345)
             throw Exception("Training_Data::reconstitue(): end marker invalid "
                             "or not found");
         break;
     }
-        
+
     default:
         throw Exception("Training_Data::reconstitute(): unknown version");
     }
 }
-    
+
 void Training_Data::load(const std::string & filename)
 {
     Store_Reader store(filename);
@@ -175,7 +176,7 @@ add(const Training_Data & other, bool merge_index)
         // Don't need to do now; the dirty flags will take care of it!
 #if 0
         index_->merge(other.index_);
-#endif        
+#endif
     }
 }
 
@@ -207,11 +208,11 @@ modify_feature(int example_number,
 {
     std::shared_ptr<Feature_Set> & fs = data_[example_number];
     Mutable_Feature_Set * mut_fs = 0;
-    
+
     float old_val = (*fs)[feature];
 
     if (old_val == new_val) return old_val;
-            
+
     if (!mut_fs)
         mut_fs = dynamic_cast<Mutable_Feature_Set *>(fs.get());
     if (!mut_fs) {
@@ -249,7 +250,7 @@ fixup_grouping_features(const std::vector<Feature> & group_features,
             ignore[i] = true;
         else ignore[i] = false;
     }
-    
+
     //cerr << "fixup_grouping_features: features = " << group_features
     //     << " offsets = " << offset << endl;
 
@@ -275,16 +276,16 @@ fixup_grouping_features(const std::vector<Feature> & group_features,
 
             if (group < last[f])
                 offset[f] += last[f] + 1.0;
-            
+
             float new_group = group + offset[f];
-            
+
             if (group != new_group)
                 modify_feature(x, group_features[f], new_group);
-            
+
             last[f] = group;
         }
     }
-    
+
     for (unsigned f = 0;  f < nf;  ++f) {
         if (ignore[f]) continue;
         offset[f] += last[f] + 1.0;
@@ -319,7 +320,7 @@ void Training_Data::preindex_features()
     return;
     throw Exception("STUB", __PRETTY_FUNCTION__);
 }
-    
+
 vector<std::shared_ptr<Training_Data> >
 Training_Data::
 partition(const std::vector<float> & sizes_, bool random,
@@ -329,7 +330,7 @@ partition(const std::vector<float> & sizes_, bool random,
 
     //cerr << "partitioning dataset" << endl;
     //dump(cerr);
-    
+
     /* We do it differently depending upon whether or not we have a grouping
        feature. */
     if (group_feature == MISSING_FEATURE) {
@@ -341,31 +342,31 @@ partition(const std::vector<float> & sizes_, bool random,
         vector<int> order(example_count());
         std::iota(order.begin(), order.end(), 0);
         if (random) std::random_shuffle(order.begin(), order.end());
-        
+
         distribution<float> sizes(sizes_.begin(), sizes_.end());
         sizes.normalize();  sizes *= example_count();
-        
+
         //cerr << "sizes = " << sizes << endl;
-        
+
         unsigned ex = 0;
         for (unsigned i = 0;  i < sizes.size();  ++i) {
             /* Make an output training data object of the right type. */
             output[i].reset(make_type());
             output[i]->init(feature_space());
-            
+
             /* Copy the data.  This is efficient since we use shared pointers to
                point to them; we are merely increasing the reference count of the
                pointer. */
             int n = (int)round(sizes[i]);
-            
+
             /* Compensate for rounding errors. */
             while (ex + n > example_count()) --n;
-            
+
             //cerr << "n = " << n << "  ex = " << ex << "  ex + n = " << ex + n
             //     << "  example_count = " << example_count() << endl;
             for (int x = ex;  x < ex + n;  ++x)
                 output[i]->add_example(share(order[x]));
-            
+
             ex += n;
         }
     }
@@ -393,7 +394,7 @@ partition(const std::vector<float> & sizes_, bool random,
             group_examples.back().push_back(it->example());
             group_numbers[it->example()] = group_examples.size() - 1;
         }
-        
+
         //cerr << "groups = " << groups << endl;
 
         int group_count = group_examples.size();
@@ -408,12 +409,12 @@ partition(const std::vector<float> & sizes_, bool random,
         //cerr << "order = " << order << endl;
         if (random) std::random_shuffle(order.begin(), order.end());
         //cerr << "order = " << order << endl;
-        
+
         distribution<float> sizes(sizes_.begin(), sizes_.end());
         sizes.normalize();  sizes *= group_count;
-        
+
         //cerr << "sizes = " << sizes << endl;
-        
+
         unsigned gr = 0;
         size_t total = 0;
         for (unsigned i = 0;  i < sizes.size();  ++i) {
@@ -430,7 +431,7 @@ partition(const std::vector<float> & sizes_, bool random,
             while (gr + n > group_count) --n;
 
             //cerr << "i = " << i << " gr = " << gr << " n = " << n << endl;
-            
+
             //cerr << "adding " << n << " groups to dataset " << i << endl;
             for (int g = gr;  g < gr + n;  ++g) {
                 //cerr << " " << groups[order[g]] << " ( ";
@@ -446,7 +447,7 @@ partition(const std::vector<float> & sizes_, bool random,
             gr += n;
         }
     }
-    
+
     return output;
 }
 
@@ -493,4 +494,3 @@ row_comment(size_t row) const
 }
 
 } // namespace ML
-

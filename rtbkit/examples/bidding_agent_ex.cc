@@ -54,7 +54,13 @@ struct FixedPriceBiddingAgent :
         strictMode(false);
 
         onBidRequest = bind(
-                &FixedPriceBiddingAgent::bid, this, _1, _2, _3, _4, _5, _6);
+                &FixedPriceBiddingAgent::bid, this,
+                boost::placeholders::_1,
+                boost::placeholders::_2,
+                boost::placeholders::_3,
+                boost::placeholders::_4,
+                boost::placeholders::_5,
+                boost::placeholders::_6);
 
         // This component is used to speak with the master banker and pace the
         // rate at which we spend our budget.
@@ -235,4 +241,3 @@ int main(int argc, char** argv)
 
     return 0;
 }
-

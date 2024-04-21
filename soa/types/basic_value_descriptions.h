@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <cmath>
 #include <limits>
 
 #include "value_description.h"
@@ -155,7 +156,7 @@ struct DefaultDescription<signed int>
     {
         *val = context.expectInt();
     }
-    
+
     virtual void printJsonTyped(const signed int * val,
                                 JsonPrintingContext & context) const
     {
@@ -172,7 +173,7 @@ struct DefaultDescription<unsigned int>
     {
         *val = context.expectInt();
     }
-    
+
     virtual void printJsonTyped(const unsigned int * val,
                                 JsonPrintingContext & context) const
     {
@@ -189,7 +190,7 @@ struct DefaultDescription<signed long>
     {
         *val = context.expectLong();
     }
-    
+
     virtual void printJsonTyped(const signed long * val,
                                 JsonPrintingContext & context) const
     {
@@ -206,7 +207,7 @@ struct DefaultDescription<unsigned long>
     {
         *val = context.expectUnsignedLong();
     }
-    
+
     virtual void printJsonTyped(const unsigned long * val,
                                 JsonPrintingContext & context) const
     {
@@ -223,7 +224,7 @@ struct DefaultDescription<signed long long>
     {
         *val = context.expectLongLong();
     }
-    
+
     virtual void printJsonTyped(const signed long long * val,
                                 JsonPrintingContext & context) const
     {
@@ -240,7 +241,7 @@ struct DefaultDescription<unsigned long long>
     {
         *val = context.expectUnsignedLongLong();
     }
-    
+
     virtual void printJsonTyped(const unsigned long long * val,
                                 JsonPrintingContext & context) const
     {
@@ -699,7 +700,7 @@ struct Optional: public std::unique_ptr<T> {
     Optional()
     {
     }
-    
+
     Optional(Optional && other)
         : std::unique_ptr<T>(std::move(other))
     {
@@ -918,7 +919,7 @@ struct TaggedDoubleDef : public TaggedDouble {
 template<>
 struct DefaultDescription<TaggedBool>
     : public ValueDescriptionI<TaggedBool, ValueKind::BOOLEAN> {
-  
+
     virtual void parseJsonTyped(TaggedBool * val,
                                 JsonParsingContext & context) const
     {
@@ -944,7 +945,7 @@ template<int defValue>
 struct DefaultDescription<TaggedBoolDef<defValue> >
     : public ValueDescriptionI<TaggedBoolDef<defValue>,
                                ValueKind::BOOLEAN> {
-  
+
     virtual void parseJsonTyped(TaggedBoolDef<defValue> * val,
                                 JsonParsingContext & context) const
     {
@@ -1028,7 +1029,7 @@ struct DefaultDescription<TaggedInt64>
 : public ValueDescriptionI<TaggedInt64,
                            ValueKind::INTEGER,
                            DefaultDescription<TaggedInt64> > {
-    
+
     virtual void parseJsonTyped(TaggedInt64 * val,
                                 JsonParsingContext & context) const
     {
@@ -1096,7 +1097,7 @@ struct DefaultDescription<TaggedFloat>
 
     virtual bool isDefaultTyped(const TaggedFloat * val) const
     {
-        return isnan(val->val);
+        return std::isnan(val->val);
     }
 };
 
@@ -1286,7 +1287,7 @@ struct DefaultDescription<ML::compact_vector<T, Internal> >
         ML::compact_vector<T, Internal> * val2 = reinterpret_cast<ML::compact_vector<T, Internal> *>(val);
         val2->resize(newLength);
     }
-    
+
     virtual const ValueDescription & contained() const
     {
         return *this->inner;
@@ -1352,7 +1353,7 @@ struct CommaSeparatedListDescription
                     if (!res.empty())
                         res += ", ";
                     res += s;
-                        
+
                 };
             context.forEachElement(onElement);
             *val = res;
@@ -1520,7 +1521,7 @@ struct DefaultDescription<List<T> >
         List<T> * val2 = reinterpret_cast<List<T> *>(val);
         val2->resize(newLength);
     }
-    
+
     virtual const ValueDescription & contained() const
     {
         return *this->inner;

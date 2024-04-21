@@ -1,10 +1,10 @@
 /* distribution.h                                                  -*- C++ -*-
    Jeremy Barnes, 27 January 2005
    Copyright (c) 2005 Jeremy Barnes.  All rights reserved.
-   
+
    This file is part of "Jeremy's Machine Learning Library", copyright (c)
    1999-2005 Jeremy Barnes.
-   
+
    This program is available under the GNU General Public License, the terms
    of which are given by the file "license.txt" in the top level directory of
    the source code distribution.  If this file is missing, you have no right
@@ -36,6 +36,8 @@
 #include <boost/utility/enable_if.hpp>
 #include <boost/type_traits/is_convertible.hpp>
 #include <boost/type_traits/is_same.hpp>
+
+#include <cmath>
 
 namespace ML {
 
@@ -159,7 +161,7 @@ public:
     UPDATE_DIST_OP(*=)
     UPDATE_DIST_OP(/=)
     #undef UPDATE_DIST_OP
-    
+
     #define UPDATE_SCALAR_OP(op) \
     template<class F2>      \
     distribution & \
@@ -199,7 +201,7 @@ public:
 
     double two_norm() const
     {
-        return sqrt(dotprod(*this));
+        return std::sqrt(dotprod(*this));
     }
 
     void normalize()
@@ -312,6 +314,9 @@ public:
     }
 };
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wint-in-bool-context"
+
 #define DIST_DIST_OP(op) \
 template<class F1, class F2, class Underlying1, class Underlying2>     \
 distribution<F1, Underlying1>           \
@@ -336,6 +341,8 @@ DIST_DIST_OP(|);
 DIST_DIST_OP(&&);
 DIST_DIST_OP(||);
 #undef DIST_DIST_OP
+
+#pragma GCC diagnostic pop
 
 // NOTE: cannot make the two types different here, as then
 // distribution-distribution operations get caught.  Need to use a MPL

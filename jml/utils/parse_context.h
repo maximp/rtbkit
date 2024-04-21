@@ -1,10 +1,10 @@
 /* parse_context.h                                                  -*- C++ -*-
    Jeremy Barnes, 27 January 2005
    Copyright (c) 2005 Jeremy Barnes.  All rights reserved.
-      
+
    This file is part of "Jeremy's Machine Learning Library", copyright (c)
    1999-2005 Jeremy Barnes.
-   
+
    This program is available under the GNU General Public License, the terms
    of which are given by the file "license.txt" in the top level directory of
    the source code distribution.  If this file is missing, you have no right
@@ -55,7 +55,7 @@ struct Parse_Context {
     /** Initialize from a filename, loading the file and uncompressing if
         necessary. */
     explicit Parse_Context(const std::string & filename);
-    
+
     /** Initialize from a memory region. */
     Parse_Context(const std::string & filename, const char * start,
                   const char * finish, unsigned line = 1, unsigned col = 1);
@@ -132,7 +132,7 @@ struct Parse_Context {
         char operator * () const { return c; }
         char c;
     };
-    
+
     Last_Char operator ++ (int)
     {
         char result = operator * ();
@@ -145,7 +145,7 @@ struct Parse_Context {
         if (eof()) exception("unexpected EOF");
         return *cur_;
     }
-    
+
     /** Match a literal character.  Return true if matched or false if not.
         Never throws.
     */
@@ -155,13 +155,13 @@ struct Parse_Context {
         if (*cur_ == c) { operator ++();  return true; }
         return false;
     }
-    
+
     /** Expect a literal character.  Throws if the character is not matched. */
     void expect_literal(char c, const char * error = "expected '%c', got '%c'")
     {
         if (!match_literal(c)) exception_fmt(error, c, (eof() ? '\0' : *cur_));
     }
-    
+
     /** Match a literal string.  Returns true if it was matched and false if
         not.  Never throws.
     */
@@ -169,7 +169,7 @@ struct Parse_Context {
     {
         return match_literal_str(str.data(), str.length());
     }
-    
+
     /** Expect a literal string.  Throws an exception if the given string
         was not at the current position.
     */
@@ -186,7 +186,7 @@ struct Parse_Context {
     {
         return match_literal_str(str, strlen(str));
     }
-    
+
     /** Expect a literal string.  Throws an exception if the given string
         was not at the current position.
     */
@@ -199,32 +199,32 @@ struct Parse_Context {
     template<class FoundEnd>
     bool match_text(std::string & text, const FoundEnd & found)
     {
-#if 0 // buggy        
+#if 0 // buggy
         /* We do each buffer separately, to avoid overhead. */
         while (!eof()) {
             const char * text_start = cur_;
 
             /* Go to an EOF or the end of the buffer, whatever first. */
             while (cur_ < ebuf_ && !found(*cur_)) ++cur_;
-            
+
             /* Copy the text. */
             text.append(text_start, cur_);
-            
+
             /* Did we find the end of line? */
             if (cur_ < ebuf_) break;
-            
+
             /* We need a new buffer. */
             --cur_;  // make sure the operator ++ will return a new buffer
             operator ++ ();  // get the new buffer
         }
 #else
         char internalBuffer[4096];
-        
+
         char * buffer = internalBuffer;
         size_t bufferSize = 4096;
         size_t pos = 0;
         char c;
-        
+
         while (!eof() && !found(c = operator *())) {
             if (pos == bufferSize) {
                 size_t newBufferSize = bufferSize * 8;
@@ -270,32 +270,32 @@ struct Parse_Context {
     std::string expect_text(char delimiter,
                             bool allow_empty = true,
                             const char * error = "expected text");
-    
+
     std::string expect_text(const char * delimiters,
                             bool allow_empty = true,
                             const char * error = "expected text");
-    
+
     bool match_int(int & val, int min = -INT_MAX, int max = INT_MAX);
-    
+
     int expect_int(int min = -INT_MAX, int max = INT_MAX,
                    const char * error = "expected integer");
 
     bool match_hex4(int & val, int min = -INT_MAX, int max = INT_MAX);
-    
+
     int expect_hex4(int min = -INT_MAX, int max = INT_MAX,
                    const char * error = "invalid hexadecimal in code");
 
 
     bool match_unsigned(unsigned & val, unsigned min = 0,
                         unsigned max = INT_MAX);
-    
+
     unsigned expect_unsigned(unsigned min = 0, unsigned max = INT_MAX,
                         const char * error = "expected unsigned");
- 
+
     bool match_long(long & val,
                     long min = LONG_MIN,
                     long max = LONG_MAX);
-    
+
     long expect_long(long min = -LONG_MAX,
                      long max = LONG_MAX,
                      const char * error = "expected long integer");
@@ -303,16 +303,16 @@ struct Parse_Context {
     bool match_unsigned_long(unsigned long & val,
                              unsigned long min = 0,
                              unsigned long max = ULONG_MAX);
-    
+
     unsigned long
     expect_unsigned_long(unsigned long min = 0,
                          unsigned long max = ULONG_MAX,
                          const char * error = "expected long integer");
-    
+
     bool match_long_long(long long & val,
                          long long min = LONG_LONG_MIN,
                          long long max = LONG_LONG_MAX);
-    
+
     long long
     expect_long_long(long long min = -LONG_LONG_MAX,
                      long long max = LONG_LONG_MAX,
@@ -321,25 +321,25 @@ struct Parse_Context {
     bool match_unsigned_long_long(unsigned long long & val,
                                   unsigned long long min = 0,
                                   unsigned long long max = ULONG_LONG_MAX);
-    
+
     unsigned long long
     expect_unsigned_long_long(unsigned long long min = 0,
                               unsigned long long max = ULONG_LONG_MAX,
                               const char * error = "expected long long integer");
-    
+
     /** Matches a floating point value in the given range. */
     bool match_float(float & val, float min = -INFINITY, float max = INFINITY);
-    
+
     float expect_float(float min = -INFINITY, float max = INFINITY,
                        const char * error = "expected float");
-    
+
     /** Matches a floating point value in the given range. */
     bool match_double(double & val,
                       double min = -INFINITY, double max = INFINITY);
-    
+
     double expect_double(double min = -INFINITY, double max = INFINITY,
                          const char * error = "expected double");
-    
+
     bool match_whitespace()
     {
         bool result = false;
@@ -355,7 +355,7 @@ struct Parse_Context {
     {
         match_whitespace();
     }
-    
+
     void expect_whitespace()
     {
         if (!match_whitespace()) exception("expected whitespace");
@@ -445,13 +445,13 @@ struct Parse_Context {
 
     /** Return a message giving filename:line:col */
     std::string where() const;
-    
+
     void exception(const std::string & message) const JML_NORETURN;
 
     void exception(const char * message) const JML_NORETURN;
 
     void exception_fmt(const char * message, ...) const JML_NORETURN;
-    
+
     size_t get_offset() const { return ofs_; }
     size_t get_line() const { return line_; }
     size_t get_col() const { return col_; }
@@ -459,7 +459,7 @@ struct Parse_Context {
     /** Query if we are at the end of file.  This occurs when we can't find
         any more characters. */
     JML_ALWAYS_INLINE bool eof() const
-    { 
+    {
         //using namespace std;
         //cerr << "eof: cur_ = " << (void *)cur_ << "ebuf_ = " << (void *)ebuf_
         //     << endl;
@@ -497,7 +497,7 @@ struct Parse_Context {
     {
         if (!eof()) exception(error);
     }
-    
+
     bool match_line(std::string & line)
     {
         if (eof()) return false;
@@ -520,7 +520,7 @@ struct Parse_Context {
 
     bool match_literal_str(const char * start, size_t len);
 
-protected: 
+protected:
     /** This token class allows speculative parsing.  It saves the position
         of the parse context, and will on destruction revert back to that
         position, unless it was ignored.
@@ -556,23 +556,23 @@ protected:
             //cerr << "first = " << context.first_token_ << " last = "
             //     << context.last_token_ << endl;
         }
-        
+
         ~Token()
         {
             //std::cerr << "deleting token " << this << std::endl;
-            if (context)
-                throw Exception("Parse_Context::Token::~Token(): "
-                                "active token was destroyed");
+            //if (context)
+            //    throw Exception("Parse_Context::Token::~Token(): "
+            //                    "active token was destroyed");
         }
-        
+
         void apply()
         {
-            //std::cerr << "applying token " << this << 
+            //std::cerr << "applying token " << this <<
             //    " context = " << context << std::endl;
             /* Apply the token.  This reverts us back to the current
                position. */
             if (!context) return;  // nothing to do
-            
+
             //std::cerr << "  check..." << std::endl;
 
             /* We should be the last token. */
@@ -597,7 +597,7 @@ protected:
             /* Finish off by removing it. */
             remove();
         }
-        
+
         void remove()
         {
             //std::cerr << "removing token " << this << std::endl;
@@ -611,7 +611,7 @@ protected:
                                     "logic error: no prev but not first");
                 context->first_token_ = next;
             }
-            
+
             if (next) next->prev = prev;
             else {
                 if (context->last_token_ != this)
@@ -638,7 +638,7 @@ protected:
 
         friend class Parse_Context;
     };
-    
+
 public:
     /** A token that, unless ignore() is called, will cause the parse context
         to revert back to its position once it goes out of scope.  Used for
@@ -656,7 +656,7 @@ public:
             }
             catch (...) {
                 remove();
-                throw;
+                //throw;
             }
         }
 

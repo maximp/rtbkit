@@ -13,6 +13,9 @@
 #include <boost/interprocess/sync/named_mutex.hpp>
 #include <boost/interprocess/sync/scoped_lock.hpp>
 #include <boost/static_assert.hpp>
+#if BOOST_VERSION >= 106700
+#   include <boost/next_prior.hpp>
+#endif
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -81,7 +84,7 @@ struct DeferredEntry1 {
     {
         fn(data);
     }
-        
+
     void (*fn) (void *);
     void * data;
 };
@@ -92,7 +95,7 @@ struct DeferredEntry2 {
         : fn(fn), data1(data1), data2(data2)
     {
     }
-        
+
     void run()
     {
         fn(data1, data2);
@@ -110,7 +113,7 @@ struct DeferredEntry3 {
         : fn(fn), data1(data1), data2(data2), data3(data3)
     {
     }
-        
+
     void run()
     {
         fn(data1, data2, data3);
@@ -181,7 +184,7 @@ struct GcLockBase::DeferredList {
         deferred3.push_back(DeferredEntry3(fn, data1, data2, data3));
         return true;
     }
-        
+
     size_t size() const
     {
         //boost::lock_guard<ML::Spinlock> guard(lock);
@@ -318,7 +321,7 @@ calcVisibleEpoch()
 
     return oldValue != visibleEpoch;
 }
-        
+
 std::string
 GcLockBase::Data::
 print() const
@@ -436,7 +439,7 @@ GcLockBase::
 enterCS(ThreadGcInfoEntry * entry, RunDefer runDefer)
 {
     if (!entry) entry = &getEntry();
-        
+
     ExcAssertEqual(entry->inEpoch, -1);
 
 #if 0 // later...
@@ -474,7 +477,7 @@ enterCS(ThreadGcInfoEntry * entry, RunDefer runDefer)
         }
 
         entry->inEpoch = newValue.epoch & 1;
-            
+
         if (updateData(current, newValue, runDefer)) break;
     }
 }
@@ -494,9 +497,9 @@ exitCS(ThreadGcInfoEntry * entry, RunDefer runDefer /* = true */)
         return;
     }
 
-        
+
     // Slow path; an epoch may have come to an end
-    
+
     Data current = *data;
 
     for (;;) {
@@ -545,7 +548,7 @@ enterCSExclusive(ThreadGcInfoEntry * entry)
     // At this point, we have exclusive access... now wait for everything else
     // to exit.  This is kind of a critical section barrier.
     int startEpoch = current.epoch;
-    
+
 #if 1
     visibleBarrier();
 #else
@@ -555,7 +558,7 @@ enterCSExclusive(ThreadGcInfoEntry * entry)
         if (current.visibleEpoch == current.epoch
             && current.inCurrent() == 0 && current.inOld() == 0)
             break;
-        
+
         long res = futex_wait(data->visibleEpoch, current.visibleEpoch);
         if (res == -1) {
             if (errno == EAGAIN) continue;
@@ -563,7 +566,7 @@ enterCSExclusive(ThreadGcInfoEntry * entry)
         }
     }
 #endif
-    
+
     ExcAssertEqual(data->epoch, startEpoch);
 
 
@@ -632,7 +635,7 @@ GcLockBase::
 visibleBarrier()
 {
     ML::memory_barrier();
-    
+
     ThreadGcInfoEntry & entry = getEntry();
 
     if (entry.inEpoch != -1)
@@ -642,10 +645,10 @@ visibleBarrier()
     Data current = *data;
     int startEpoch = data->epoch;
     //int startVisible = data.visibleEpoch;
-    
+
     // Spin until we're visible
     for (unsigned i = 0;  ;  ++i, current = *data) {
-        
+
         //int i = startEpoch & 1;
 
         // Have we moved on?  If we're 2 epochs ahead we're surely not visible
@@ -685,22 +688,22 @@ deferBarrier()
     // Do it twice to make sure that everything is cycled over two different
     // epochs
     for (unsigned i = 0;  i < 2;  ++i) {
-        
+
         // If we're in a critical section, we'll wait forever...
         ExcAssertEqual(entry.inEpoch, -1);
-        
+
         // What does "defer barrier" mean?  It means that we wait until everything
         // that is currently enqueued to be deferred is finished.
-        
+
         // TODO: this is a very inefficient implementation... we could do a lot
         // better especially in the non-contended case
-        
+
         int lock = 0;
-        
+
         defer(futex_unlock, &lock);
-        
+
         ML::atomic_add(lock, -1);
-        
+
         futex_wait(lock, -1);
     }
 
@@ -778,14 +781,14 @@ doDefer(void (fn) (Args...), Args... args)
             oldestLiveEpoch = current.epoch - 1;
         else if (current.inCurrent() > 0)
             oldestLiveEpoch = current.epoch;
-    
-        if (oldestLiveEpoch == -1 || 
+
+        if (oldestLiveEpoch == -1 ||
                 compareEpochs(oldestLiveEpoch, newestVisibleEpoch) > 0)
         {
             // Nothing in a critical section so we can run it now and exit
             break;
         }
-    
+
         // Nothing is in a critical section; we can run it inline
         if (current.inCurrent() + current.inOld() == 0)
             break;
@@ -799,7 +802,7 @@ doDefer(void (fn) (Args...), Args... args)
             // Create a new list
             epochIt->second = new DeferredList();
         }
-        
+
         DeferredList & list = *epochIt->second;
         list.addDeferred(newestVisibleEpoch, fn, std::forward<Args>(args)...);
 
@@ -809,7 +812,7 @@ doDefer(void (fn) (Args...), Args... args)
 
         return;
     }
-    
+
     // If we got here we can run it straight away
     fn(std::forward<Args>(args)...);
     return;
@@ -848,7 +851,7 @@ dump()
     {
         boost::lock_guard<ML::Spinlock> guard(deferred->lock);
         cerr << deferred->entries.size() << " epochs: ";
-        
+
         for (auto it = deferred->entries.begin(), end = deferred->entries.end();
              it != end;  ++it) {
             cerr << " " << it->first << " (" << it->second->size()

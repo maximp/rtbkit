@@ -53,7 +53,7 @@ DefaultDescription()
 
 struct HistoricalPositionDescriptor
     : public ValueDescriptionT<OpenRTB::AdPosition> {
-    
+
     virtual void parseJsonTyped(OpenRTB::AdPosition * val,
                                 JsonParsingContext & context) const
     {
@@ -74,7 +74,7 @@ struct HistoricalPositionDescriptor
             int i = context.expectInt();
             val->val = i;
         }
-        else throw ML::Exception("can't parse historical ad position " 
+        else throw ML::Exception("can't parse historical ad position "
                                  + context.expectJson().toString());
     }
 
@@ -94,7 +94,7 @@ DefaultDescription<AdSpot>::
 DefaultDescription()
 {
     addParent<OpenRTB::Impression>();
-        
+
     addField("formats", &AdSpot::formats, "Impression formats");
     addField<OpenRTB::AdPosition>("position", &AdSpot::position, "Impression fold position",
                                   new HistoricalPositionDescriptor());
@@ -564,7 +564,7 @@ fromJson(const Json::Value & val)
         {
             cerr << "(adspot)got unknown field " << context.printPath()
             << context.expectJson() << endl;
-            
+
 #if 0
             std::function<Json::Value & (int, Json::Value &)> getEntry
             = [&] (int n, Json::Value & curr) -> Json::Value &
@@ -583,7 +583,7 @@ fromJson(const Json::Value & val)
     context.onUnknownFieldHandlers.push_back(onUnknownField);
 
     desc.parseJsonTyped(this, context);
-    
+
     return;
 
     try {
@@ -642,7 +642,7 @@ toJson() const
     static DefaultDescription<AdSpot> desc;
     StructuredJsonPrintingContext context;
     desc.printJsonTyped(this, context);
-    return std::move(context.output);
+    return context.output;
 }
 
 std::string formatDims(const SmallIntVector & dims)
@@ -862,7 +862,7 @@ struct UserIdsDescription
                 Id value(context.expectStringAscii());
                 val->add(value, key);
             };
-        
+
         context.forEachMember(onMember);
     }
 
@@ -973,7 +973,7 @@ BidRequest::
 toJsonStr() const
 {
     static const DefaultDescription<BidRequest> BidRequestDesc;
-    
+
     std::ostringstream stream;
     StreamJsonPrintingContext context(stream);
     BidRequestDesc.printJson(this, context);
@@ -1109,7 +1109,7 @@ namespace {
 static const DefaultDescription<BidRequest> BidRequestDesc;
 
 struct CanonicalParser {
-    
+
     static BidRequest * parse(const std::string & str)
     {
 #if 0 // old and slow
@@ -1288,4 +1288,3 @@ reconstitute(ML::DB::Store_Reader & store)
 }
 
 } // namespace RTBKIT
-

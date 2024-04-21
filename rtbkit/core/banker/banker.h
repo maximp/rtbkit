@@ -1,7 +1,7 @@
 /* banker.h                                                    -*- C++ -*-
    Sunil Rottoo, May 2012
    Copyright (c) 2012 Datacratic.  All rights reserved.
-   
+
    Class to deal with accounting in the router.
 */
 
@@ -67,7 +67,7 @@ struct BankerSyncResult:  boost::noncopyable {
             ML::futex_wait(done, 0);
         if (exc)
             std::rethrow_exception(exc);
-        return std::move(result);
+        return std::forward<T>(result);
     }
 };
 
@@ -108,7 +108,7 @@ struct BankerSyncResult<void> : boost::noncopyable {
     }
 };
 
-    
+
 
 
 /*****************************************************************************/
@@ -140,10 +140,10 @@ struct BudgetController {
     /**
      * The amount here refers to an absolute amount that the strategy should have. This method
      * transfers the appropriate amount so that the strategy ends up with the specified amount
-     * 
+     *
      * The default implementation of the following two methods call each other, so you
      * must override at least one of them to avoid an infinite recursion
-     * 
+     *
      * @param campaign The campaign to which we want to add our strategy
      * @param strategy The name of the strategy
      * @param amount The amount that the strategy should have after the transfer
@@ -155,10 +155,10 @@ struct BudgetController {
     virtual void topupTransfer(const AccountKey & account,
                                CurrencyPool amount,
                                const OnBudgetResult & onResult);
-    
+
     virtual void topupTransferSync(const AccountKey & account,
                                    CurrencyPool amount);
-    
+
     /**
      * Set the budget for a given campaign to the specified amount
      * @param campaign The campaign whose budget we want to set
@@ -175,7 +175,7 @@ struct BudgetController {
     virtual void setBudget(const std::string & topLevelAccount,
                            CurrencyPool amount,
                            const OnBudgetResult & onResult);
-    
+
     virtual void setBudgetSync(const std::string & topLevelAccount,
                                CurrencyPool amount);
 
@@ -199,7 +199,7 @@ struct BudgetController {
 
     virtual void addBudgetSync(const std::string & topLevelAccount,
                                CurrencyPool amount);
-    
+
     CurrencyPool budgetLimits;
 };
 
@@ -317,7 +317,7 @@ public:
     {
         return commitBid(account, item, amountPaid, lineItems);
     }
-    
+
     virtual void attachBid(const AccountKey & account,
                            const std::string & item,
                            Amount amountAuthorized) = 0;
@@ -405,4 +405,3 @@ struct BankerException: public ML::Exception {
 } // namespace RTBKIT
 
 #endif /* __rtb_router__banker_h__ */
-

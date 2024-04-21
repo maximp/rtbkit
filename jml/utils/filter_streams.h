@@ -1,10 +1,10 @@
 /* filter_streams.h                                                -*- C++ -*-
    Jeremy Barnes, 12 March 2005
    Copyright (c) 2005 Jeremy Barnes.  All rights reserved.
-   
+
    This file is part of "Jeremy's Machine Learning Library", copyright (c)
    1999-2005 Jeremy Barnes.
-   
+
    This program is available under the GNU General Public License, the terms
    of which are given by the file "license.txt" in the top level directory of
    the source code distribution.  If this file is missing, you have no right
@@ -16,7 +16,7 @@
    for more details.
 
    ---
-   
+
    Streams that understand "-" syntax.
 */
 
@@ -28,6 +28,7 @@
 #include <fstream>
 #include <memory>
 #include <map>
+#include <functional>
 
 namespace ML {
 
@@ -81,14 +82,14 @@ public:
               std::ios_base::openmode mode = std::ios_base::out,
               const std::string & compression = "",
               int level = -1);
-    
+
 
     void openFromStreambuf(std::streambuf * buf,
                            bool weOwnBuf,
                            const std::string & resource = "",
                            const std::string & compression = "",
                            int compressionLevel = -1);
-                           
+
     /** Open with the given options.  Option keys are interpreted by plugins,
         but include:
 
@@ -106,7 +107,7 @@ public:
                            bool weOwnBuf,
                            const std::string & resource,
                            const std::map<std::string, std::string> & options);
-    
+
     void close();
 
     std::string status() const;
@@ -194,4 +195,3 @@ void deleteAllMemStreamStrings();
 } // namespace ML
 
 #endif /* __utils__filter_streams_h__ */
-

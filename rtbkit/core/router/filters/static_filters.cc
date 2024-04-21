@@ -182,11 +182,11 @@ uint64_t calcHash(const std::string& str)
 
     union {
         uint64_t result;
-        byte bytes[sizeof(uint64_t)];
+        CryptoPP::byte bytes[sizeof(uint64_t)];
     };
 
     md5.CalculateTruncatedDigest(bytes, sizeof(uint64_t),
-            (const byte *)str.c_str(), str.size());
+            (const CryptoPP::byte *)str.c_str(), str.size());
 
     return result;
 }

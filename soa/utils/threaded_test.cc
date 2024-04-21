@@ -12,6 +12,8 @@
 #include "jml/utils/exc_check.h"
 
 #include <atomic>
+#include <thread>
+#include <chrono>
 
 using namespace std;
 using namespace ML;
@@ -119,7 +121,7 @@ run(unsigned durationMs)
     }
 
 
-    this_thread::sleep_for(chrono::milliseconds(durationMs));
+    this_thread::sleep_for(std::chrono::milliseconds(durationMs));
     isDone = true;
 
     // Wait for each thread to finish and gather the time stats.

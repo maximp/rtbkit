@@ -5,7 +5,7 @@
    Active endpoint class.
 */
 
-#include "soa/service//active_endpoint.h"
+#include "soa/service/active_endpoint.h"
 #include "jml/arch/timers.h"
 
 using namespace std;
@@ -99,16 +99,21 @@ createConnections(int nconnections, bool synchronous,
             if (first_error == "")
                 first_error = error;
         };
-    
+
     for (unsigned i = 0;  i < nconnections;  ++i) {
         //{
         //    Guard guard(this->lock);
         //    inProgress.insert(i);
         //}
-        
-        newConnection(boost::bind<void>(onConnection, _1, i),
-                      boost::bind<void>(onConnectionError2, _1, i),
-                      timeout);
+
+        newConnection(
+            [i, onConnection](const std::shared_ptr<TransportBase> & ptb) {
+                onConnection(ptb, i);
+            },
+            [i, onConnectionError2](string err) {
+                onConnectionError2(err, i);
+            },
+            timeout);
     }
 
     while (finished < nconnections) {
@@ -119,14 +124,14 @@ createConnections(int nconnections, bool synchronous,
              << " connections " << inactive.size()
              << endl;
     }
-    
+
     cerr << inactive.size() << " connections created with "
          << errors << " errors" << endl;
 
     if ((errors != 0 || inactive.size() != nconnections)
         && throwIfAnyConnectionError)
         throw Exception("error creating connections: " + first_error);
-    
+
     return inactive.size();
 }
 
@@ -141,12 +146,12 @@ getConnection(OnNewConnection onNewConnection,
     if (!inactive.empty()) {
         /* If there's a spare connection then use it */
         std::shared_ptr<TransportBase> result = *inactive.begin();
-        
+
         if (active.count(result))
             throw Exception("doubling up on IDs");
-        
+
         inactive.erase(inactive.begin());
-        
+
         if (active.empty()) idle.acquire();  // no longer idle
         active.insert(result);
         guard.release();
@@ -175,14 +180,14 @@ getConnection(OnNewConnection onNewConnection,
 
             inactive.erase(transport);
             if (active.empty()) idle.acquire();
-            
+
             active.insert(transport);
 
             guard.release();
             onNewConnection(transport);
             return;
         };
-    
+
     newConnection(newOnConnectionAvailable, onConnectionError, timeout);
 }
 

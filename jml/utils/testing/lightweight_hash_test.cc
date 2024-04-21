@@ -13,6 +13,9 @@
 #include "jml/utils/string_functions.h"
 #include <boost/test/unit_test.hpp>
 #include <boost/bind.hpp>
+#if BOOST_VERSION >= 106700
+#   include <boost/next_prior.hpp>
+#endif
 #include <iostream>
 #include <boost/tuple/tuple.hpp>
 #include "jml/arch/exception_handler.h"
@@ -92,12 +95,12 @@ BOOST_AUTO_TEST_CASE(test3)
     int nobj = 100;
 
     vector<void *> objects;
-        
+
     for (unsigned j = 0;  j < nobj;  ++j)
         objects.push_back(malloc(50));
 
     Lightweight_Hash<void *, Entry> h;
-    
+
     for (unsigned i = 0;  i < nobj;  ++i) {
         h[objects[i]].val = true;
     }
@@ -121,16 +124,16 @@ BOOST_AUTO_TEST_CASE(test3_log)
     int nobj = 100;
 
     vector<void *> objects;
-        
+
     for (unsigned j = 0;  j < nobj;  ++j)
         objects.push_back(malloc(50));
-    
+
     Lightweight_Hash<void *, Entry,
                      std::pair<void *, Entry>,
                      std::pair<const void *, Entry>,
                      PairOps<void *, Entry>,
                      LogMemStorage<std::pair<void *, Entry> > > h;
-    
+
     for (unsigned i = 0;  i < nobj;  ++i) {
         h[objects[i]].val = true;
     }
@@ -155,7 +158,7 @@ BOOST_AUTO_TEST_CASE(test_set)
     int nobj = 100;
 
     vector<int> objects;
-        
+
     for (unsigned j = 0;  j < nobj;  ++j)
         objects.push_back(random());
 
@@ -173,7 +176,7 @@ BOOST_AUTO_TEST_CASE(test_set)
     vector<int> obj2(s.begin(), s.end());
     std::sort(objects.begin(), objects.end());
     std::sort(obj2.begin(), obj2.end());
-    
+
     BOOST_CHECK_EQUAL_COLLECTIONS(objects.begin(), objects.end(),
                                   obj2.begin(), obj2.end());
 

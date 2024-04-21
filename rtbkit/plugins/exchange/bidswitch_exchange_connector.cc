@@ -322,7 +322,7 @@ struct AdtruthObject {
     void dump () const {
         LOG(bidswitchExchangeConnectorTrace) << "tdl_millis: " << tdl_millis << endl ;
         LOG(bidswitchExchangeConnectorTrace) << "DevInsight: { ";
-        for (auto const ii:  dev_insight_map) {
+        for (const auto& ii :  dev_insight_map) {
             LOG(bidswitchExchangeConnectorTrace) << ii.first << ":" << ii.second;
         }
         LOG(bidswitchExchangeConnectorTrace) << " }\n";
@@ -332,7 +332,7 @@ struct AdtruthObject {
 AdtruthObject
 parseAdtruthObject(const Json::Value& adt) {
     AdtruthObject rc;
-    for (const auto name: adt.getMemberNames()) {
+    for (const auto& name: adt.getMemberNames()) {
         if (name == "tdl_millis")
             rc.tdl_millis = adt[name].asInt();
         else
@@ -643,4 +643,3 @@ struct AtInit {
     }
 } atInit;
 }
-

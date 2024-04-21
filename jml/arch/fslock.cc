@@ -8,6 +8,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <functional>
+
 #include "threads.h"
 #include "exception.h"
 #include "fslock.h"
@@ -19,7 +21,7 @@ using namespace ML;
 namespace {
 
 struct Call_Guard {
-    
+
     typedef std::function<void ()> Fn;
 
     Call_Guard(const Fn & fn)

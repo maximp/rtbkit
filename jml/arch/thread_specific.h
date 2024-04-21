@@ -23,6 +23,7 @@
 #include <boost/thread.hpp>
 #include <unordered_set>
 #include <mutex>
+#include <deque>
 
 namespace ML {
 

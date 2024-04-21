@@ -364,7 +364,7 @@ handleMultiEvent(const ::epoll_event & event)
     if ((event.events & EPOLLOUT) != 0) {
         actionFlags |= CURL_CSELECT_OUT;
     }
-    
+
     int runningHandles;
     CURLMcode rc = ::curl_multi_socket_action(multi_.get(), event.data.fd,
                                               actionFlags,
@@ -577,7 +577,7 @@ perform(bool noSSLChecks, bool tcpNoDelay, bool debug)
     easy_.add_callback_option(CURLOPT_HEADERFUNCTION, CURLOPT_HEADERDATA, onHeader_);
     easy_.add_callback_option(CURLOPT_WRITEFUNCTION, CURLOPT_WRITEDATA, onWrite_);
     easy_.add_callback_option(CURLOPT_READFUNCTION, CURLOPT_READDATA,  onRead_);
-    
+
     easy_.add_option(CURLOPT_BUFFERSIZE, 65536);
 
     if (request_->timeout_ != -1) {
@@ -601,7 +601,6 @@ size_t
 HttpClientV1::
 HttpConnection::
 onCurlHeader(const char * data, size_t size)
-    noexcept
 {
     string headerLine(data, size);
     if (headerLine.find("HTTP/1.1 100") == 0) {

@@ -28,17 +28,13 @@ using namespace Datacratic;
 using namespace RTBKIT;
 using namespace Redis;
 
-namespace {
-
-void
+ void
 RedisReplyFillSetOfStrings(const Redis::Reply & reply,
                            unordered_set<string> & aSet) {
     ExcAssert(reply.type() == Redis::ARRAY);
     for (int i = 0; i < reply.length(); i++) {
         aSet.insert(reply[i].asString());
     }
-}
-
 }
 
 #if 0
@@ -136,7 +132,7 @@ BOOST_AUTO_TEST_CASE( test_banker_slave_banker_accounts )
         slave.start();
 
         slave.addSpendAccountSync({"top", "sub"});
-        
+
         ML::sleep(2);
     }
 

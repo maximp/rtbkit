@@ -1,10 +1,10 @@
 /* float_traits.h                                                  -*- C++ -*-
    Jeremy Barnes, 30 January 2005
    Copyright (c) 2005 Jeremy Barnes.  All rights reserved.
-   
+
    This file is part of "Jeremy's Machine Learning Library", copyright (c)
    1999-2005 Jeremy Barnes.
-   
+
    This program is available under the GNU General Public License, the terms
    of which are given by the file "license.txt" in the top level directory of
    the source code distribution.  If this file is missing, you have no right
@@ -16,7 +16,7 @@
    for more details.
 
    ---
-   
+
    Floating point traits.
 */
 
@@ -41,7 +41,10 @@ struct float_traits<F, F> {
 
 template<typename F1, typename F2, typename F3>
 struct float_traits3 {
-    typedef jml_typeof(*((F1*)(0)) + (*((F2*)(0))) + (*((F3*)(0)))) return_type;
+    F1* f1;
+    F2* f2;
+    F3* f3;
+    typedef jml_typeof(*f1 + *f2 + *f3) return_type;
 };
 
 template <typename F>
@@ -52,4 +55,3 @@ struct float_traits3<F, F, F> {
 } // namespace ML
 
 #endif /* __utils__float_traits_h__ */
-

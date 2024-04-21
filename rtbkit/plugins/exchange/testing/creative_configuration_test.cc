@@ -46,7 +46,7 @@ const std::string SNIPPET6 = "%{meta.filter#urlencode}";
     SNIPPET_FN(5, SNIPPET5)             \
     SNIPPET_FN(6, SNIPPET6)
 
-const auto providerConfigSnippet = [&](){
+const auto providerConfigSnippet = [](){
     Json::Value conf;
     auto& test = conf["test"];
 # define APPLY_FN(NB, var)\

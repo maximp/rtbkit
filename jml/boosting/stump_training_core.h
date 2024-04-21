@@ -49,10 +49,10 @@ struct LW_Array {
     template<typename T2>
     LW_Array(const boost::multi_array<T2, 2> & array)
         : base(array.data()), stride(array.shape()[1]) {}
-                                     
+
     T * base;
     size_t stride;
-    
+
     JML_ALWAYS_INLINE T * operator [] (size_t i) const { return base + i * stride; }
 };
 
@@ -93,7 +93,7 @@ struct Stream_Tracer {
           start_message(start_message)
     {
     }
-    
+
     /** Are we tracing? */
     JML_ALWAYS_INLINE operator bool () const
     {
@@ -109,7 +109,7 @@ struct Stream_Tracer {
     {
         return std::cerr << message << " " << module << " " << level << ": ";
     }
-    
+
     bool trace;              ///< Is tracing enabled?
     std::ostream & stream;   ///< Which stream do we write to?
     mutable size_t message;  ///< Which message number are we up to?
@@ -167,7 +167,7 @@ JML_ALWAYS_INLINE int get_advance(const std::vector<const float *> & weights)
 template<class W, class Z, class Tracer=No_Trace>
 struct Stump_Trainer {
     Stump_Trainer() {}
-    
+
     Stump_Trainer(const Tracer & tracer)
         : tracer(tracer)
     {
@@ -212,7 +212,7 @@ struct Stump_Trainer {
         /* Pre-calculate the bucket weights for each label. */
         W default_w = calc_default_w(data, predicted, All_Examples(), weights,
                                      advance);
-        
+
         if (tracer) {
             tracer("stump training", 1)
                 << "test all: " << features.size() << " features" << endl;
@@ -220,7 +220,7 @@ struct Stump_Trainer {
                 << "default w: " << endl
                 << default_w.print() << endl;
         }
-        
+
         for (unsigned i = 0;  i < features.size();  ++i)
             test(features[i], data, predicted, weights, All_Examples(),
                  default_w, results, advance);
@@ -268,7 +268,7 @@ struct Stump_Trainer {
                 << "default w: " << endl
                 << default_w.print() << endl;
         }
-        
+
         for (unsigned i = 0;  i < features.size();  ++i)
             test(features[i], data, predicted, weights, in_class, default_w,
                  results, advance);
@@ -344,7 +344,7 @@ struct Stump_Trainer {
             Call_Guard guard(boost::bind(&Worker_Task::unlock_group,
                                          boost::ref(worker),
                                          group));
-            
+
             for (unsigned i = 0;  i < features.size();  ++i)
                 worker.add(Test_Feature_Job<Results, Weights>
                            (this, features[i], data, predicted,
@@ -381,10 +381,10 @@ struct Stump_Trainer {
                 << "default w: " << endl
                 << default_w.print() << endl;
         }
-        
+
         std::vector<std::pair<int, float> > feature_scores;
         feature_scores.reserve(features.size());
-        
+
         for (unsigned i = 0;  i < features.size();  ++i) {
             float z = test(features[i], data, predicted, weights, All_Examples(),
                            default_w, results, advance);
@@ -397,7 +397,7 @@ struct Stump_Trainer {
 
         for (unsigned i = 0;  i < features.size();  ++i)
             new_features.push_back(features[feature_scores[i].first]);
-        
+
         features.swap(new_features);
     }
 
@@ -424,27 +424,27 @@ struct Stump_Trainer {
                 << "default w: " << endl
                 << default_w.print() << endl;
         }
-        
+
         std::vector<std::pair<int, float> > feature_scores;
         feature_scores.reserve(features.size());
-        
+
         for (unsigned i = 0;  i < features.size();  ++i) {
             float z = test(features[i], data, predicted, weights, in_class,
                            default_w, results);
             //cerr << " feat " << features[i] << " z " << z << endl;
             if (z != Z::none) feature_scores.push_back(std::make_pair(i, z));
         }
-        
+
         sort_on_second_ascending(feature_scores);
         std::vector<Feature> new_features;
         new_features.reserve(feature_scores.size());
-        
+
         for (unsigned i = 0;  i < feature_scores.size();  ++i)
             new_features.push_back(features[feature_scores[i].first]);
-        
+
         features.swap(new_features);
     }
-    
+
     /** Test the single given feature, calling the appropriate routine for the
         type of feature.
 
@@ -458,7 +458,7 @@ struct Stump_Trainer {
         \param ex_weights   Array of weights for each sample.  The weights
                             must be accessible via the syntax ex_weights[ex].
         \param default_w    The starting W value.  Passed in as it can be
-                            calculated once and used for each feature.  
+                            calculated once and used for each feature.
                             See calc_default_w.
         \param results      Results object into which we accumulate possible
                             split points and their Z values.
@@ -490,12 +490,12 @@ struct Stump_Trainer {
                 << fs->info(feature) << endl;
 
         Feature_Info info = fs->info(feature);
-        
+
         switch (info.type()) {
         case PRESENCE:
             return test_presence(feature, data, predicted, weights, ex_weights,
                                  default_w, results, advance);
-            
+
         case BOOLEAN:
             return test_boolean(feature, data, predicted, weights, ex_weights,
                                 default_w, results, advance);
@@ -508,7 +508,7 @@ struct Stump_Trainer {
         case REAL:
             return test_real(feature, data, predicted, weights, ex_weights,
                              default_w, results, advance);
-            
+
         case INUTILE: {
             double missing;
             if (!results.start(feature, default_w, missing))
@@ -558,7 +558,7 @@ struct Stump_Trainer {
         W result(nl);
 
         const std::vector<Label> & labels = data.index().labels(predicted);
-        
+
         for (unsigned i = 0;  i < data.example_count();  ++i) {
             if (ex_weights[i] == 0.0) continue;
             int correct_label = labels[i];
@@ -571,7 +571,7 @@ struct Stump_Trainer {
             result.add(correct_label, MISSING, ex_weights[i], &weights[i][0],
                        advance);
         }
-        
+
         //using namespace std;
         //cerr << "default w: " << endl
         //     << result.print() << endl;
@@ -616,12 +616,12 @@ struct Stump_Trainer {
                  const Feature & feature, bool def, int advance) const
     {
         using namespace std;
-        
+
         /* Fix it up for the ones where the feature occurs. */
         Joint_Index index
             = data.index().joint(predicted, feature, BY_EXAMPLE,
                                  IC_EXAMPLE | IC_LABEL | IC_DIVISOR);
-        
+
 #if 0
         if (tracer)
             tracer("adjust_w", 3)
@@ -631,7 +631,7 @@ struct Stump_Trainer {
                 << " data.example_count() = " << data.example_count()
                 << endl;
 #endif
-        
+
         unsigned i = 0;
         int result = 0;
 
@@ -654,10 +654,10 @@ struct Stump_Trainer {
                        advance);
             ++result;
         }
-        
+
         /* Compensate for any accumulated rounding errors. */
         w.clip(MISSING);
-        
+
         return result;
     }
 
@@ -691,12 +691,12 @@ struct Stump_Trainer {
                                  IC_EXAMPLE | IC_LABEL | IC_DIVISOR | IC_VALUE);
 
         if (index.empty()) return Z::none;
-        
+
 
         ++num_non_bucketed;
 
         W w(default_w);
-        
+
         unsigned i = 0;
         for (;  i < index.size();  ++i) {
             if (index[i].missing()) continue;
@@ -709,20 +709,20 @@ struct Stump_Trainer {
                we need to spread its weight out over all of them (otherwise
                the one feature will have too much weight). */
             double divisor = ex_weights[example] * index[i].divisor();
-            
+
             w.transfer(label, MISSING, bucket, divisor, &weights[example][0],
                        advance);
         }
-        
+
         /* Compensate for any accumulated rounding errors. */
         w.clip(MISSING);
 
         double missing;
         if (!results.start(feature, w, missing)) return Z::worst;
-        float Z = results.add(feature, w, 0.5, missing);
+        float Z0 = results.add(feature, w, 0.5, missing);
         results.finish(feature);
-        
-        return Z;
+
+        return Z0;
     }
 
     /** Test a presence variable. */
@@ -743,18 +743,18 @@ struct Stump_Trainer {
         int ex = adjust_w(w, data, predicted, weights, ex_weights, feature,
                           true, advance);
         if (ex == 0) return Z::none; // no examples
-        
+
         if (tracer)
             tracer("test_presence", 1)
                 << "w = " << endl << w.print() << endl;
-        
+
         double missing;
 
         if (!results.start(feature, w, missing)) return Z::worst;
-        float Z = results.add_presence(feature, w, 0.5, missing);
+        float Z0 = results.add_presence(feature, w, 0.5, missing);
         results.finish(feature);
-        
-        return Z;
+
+        return Z0;
     }
 
     template<class Results, class Weights, class ExampleWeights>
@@ -767,7 +767,7 @@ struct Stump_Trainer {
                            int advance) const
     {
         ++num_categorical;
-        
+
         /* See if we can do it by buckets.  We only do so if more than 20% of
            the examples include this feature (otherwise it will probably be
            slower).
@@ -782,28 +782,28 @@ struct Stump_Trainer {
             = data.index().joint(predicted, feature, BY_VALUE,
                                  IC_EXAMPLE | IC_LABEL | IC_EXAMPLE
                                  | IC_DIVISOR);
-        
+
         if (index.empty()) return Z::none;
-        
+
         W w(default_w);
         int ex = adjust_w(w, data, predicted, weights, ex_weights, feature,
                           false, advance);
-        
+
         if (ex == 0) return Z::none;
 
         double missing;
 
         if (!results.start(feature, w, missing)) return Z::worst;
-        
+
         /* Save this W value so we can get back to it after each value. */
         W w_start(w);
-        
+
         bool debug = false;
 
         int i = 0;
         /* Skim off any missing ones from the start. */
         while (i < index.size() && index[i].missing()) ++i;
-        
+
         using namespace std;
 
         if (debug) {
@@ -815,20 +815,20 @@ struct Stump_Trainer {
 
         /* One candidate split point is -INF, which lets us split only based
            upon missing or not. */
-        float Z = Z::worst;
+        float Z0 = Z::worst;
 
         if (i != 0) {
-            Z = results.add(feature, w, -INFINITY, missing);
-        
+            Z0 = results.add(feature, w, -INFINITY, missing);
+
             if (debug)
                 cerr << "added split " << -INFINITY << " with " << missing
-                     << " missing and score " << Z << endl;
+                     << " missing and score " << Z0 << endl;
         }
 
         float prev = index[i].value();
-        
+
         while (i < index.size()) {
-            
+
             int nex = 0;
             /* Look for a unique split point. */
             while (i < index.size() && index[i].value() == prev) {
@@ -838,30 +838,30 @@ struct Stump_Trainer {
 
                 int label = index[i].label();
                 float divisor = ex_weights[example] * index[i].divisor();
-                
-                /* Transfer weight from predicate not holding to predicate 
+
+                /* Transfer weight from predicate not holding to predicate
                    holding. */
                 w.transfer(label, false, true, divisor, &weights[example][0],
                            advance);
-                
+
                 ++i;  ++nex;
             }
-            
+
             /* Fix up any rounding errors that took it below zero. */
             w.clip(false);
-            
+
             /* Add this split point. */
             float arg = prev;
             float new_Z = results.add(feature, w, arg, missing);
-            Z = std::min(Z, new_Z);
-            
-            if (debug && new_Z == Z) {
+            Z0 = std::min(Z0, new_Z);
+
+            if (debug && new_Z == Z0) {
                 cerr << "i = " << i << endl;
                 cerr << "added split "
                      << data.feature_space()->print(feature, arg)
                      << " with " << missing
                      << " missing and score " << new_Z
-                     << (new_Z == Z ? " *** BEST ***" : "")
+                     << (new_Z == Z0 ? " *** BEST ***" : "")
                      << endl;
 
                 cerr << "nex = " << nex << endl;
@@ -869,16 +869,16 @@ struct Stump_Trainer {
                 cerr << "W = " << w.print() << endl;
 
             }
-            
+
             /* Reset back to old values for next value */
             w = w_start;
-            
+
             if (i < index.size()) prev = index[i].value();
         }
-        
+
         results.finish(feature);
 
-        return Z;
+        return Z0;
     }
 
     template<class Results, class Weights, class ExampleWeights>
@@ -927,7 +927,7 @@ struct Stump_Trainer {
                                  IC_VALUE | IC_LABEL | IC_EXAMPLE | IC_DIVISOR);
 
         if (index.empty()) return Z::none;
-        
+
         W w(default_w);
         int ex = adjust_w(w, data, predicted, weights, ex_weights, feature,
                           true, advance);
@@ -943,49 +943,49 @@ struct Stump_Trainer {
 
         --num_real_early;
         ++num_real_not_early;
-        
+
         int i = 0;
         /* Skim off any missing ones from the start. */
         while (i < index.size() && index[i].missing()) ++i;
-        
+
         if (debug) {
             cerr << "i = " << i << " of " << index.size() << endl;
         }
 
         // TODO: not missing
-        float Z = Z::worst;
+        float Z0 = Z::worst;
 #if 0
         /* One candidate split point is -INF, which lets us split only based
            upon missing or not. */
-        float Z = results.add(feature, w, -INFINITY, missing);
+        float Z0 = results.add(feature, w, -INFINITY, missing);
 #endif
-        
+
         float prev = index[i].value();
         float max_value = index.back().value();
-        
+
         while (i < index.size() && index[i].value() < max_value) {
-            
+
             /* Look for a unique split point. */
             for (; i < index.size() && index[i].value() < max_value
                      && index[i].value() == prev;  ++i) {
-                
+
                 int example = index[i].example();
                 if (ex_weights[example] == 0.0) continue;
                 int label = index[i].label();
                 float divisor = ex_weights[example] * index[i].divisor();
-                
-                /* Transfer weight from predicate not holding to predicate 
+
+                /* Transfer weight from predicate not holding to predicate
                    holding. */
                 w.transfer(label, true, false, divisor, &weights[example][0],
                            advance);
             }
-            
+
             /* Fix up any rounding errors that took it below zero. */
             w.clip(true);
 
             /* Add this split point. */
             float arg = (index[i].value() + prev) * 0.5;
-            
+
             if (arg == prev || arg == index[i].value()) {
                 arg = index[i].value();
 #if 0 // TODO: should be equal to lower or highest?
@@ -1020,14 +1020,14 @@ struct Stump_Trainer {
                                prev, i1, index[i].value(), i2, dist)
                      << endl;
             }
-            Z = std::min(Z, new_Z);
-            
+            Z0 = std::min(Z0, new_Z);
+
             prev = index[i].value();
         }
-        
+
         results.finish(feature);
 
-        return Z;
+        return Z0;
     }
 
     template<class Results, class Weights, class ExampleWeights>
@@ -1072,9 +1072,9 @@ struct Stump_Trainer {
 
             if (ex_weights[example] == 0.0) continue;
             int label = index[i].label();
-            
+
             double divisor = ex_weights[example] * index[i].divisor();
-            
+
             int bucket = index[i].bucket();
 
             //cerr << "i " << i << " example " << example << " label "
@@ -1103,7 +1103,7 @@ struct Stump_Trainer {
 
         /* One candidate split point is -INF, which lets us split only based
            upon missing or not. */
-        float Z = Z::worst;
+        float Z0 = Z::worst;
 
         if (missing > 0.0)
             results.add(feature, w, -INFINITY, missing);
@@ -1113,7 +1113,7 @@ struct Stump_Trainer {
             cerr << "missing = " << missing << endl;
             cerr << "nb = " << nb << endl;
             cerr << "added default split " << -INFINITY << " with "
-                 << missing << " missing and score " << Z
+                 << missing << " missing and score " << Z0
                  << endl;
         }
 
@@ -1136,7 +1136,7 @@ struct Stump_Trainer {
 
             /* Fix up any rounding errors that took it below zero. */
             w.clip(true);
-            
+
             if (debug) {
                 cerr << "after clip: " << endl << w.print() << endl;
             }
@@ -1146,26 +1146,26 @@ struct Stump_Trainer {
             float new_Z = results.add(feature, w, arg, missing);
 
             if (categorical) w = w_start;
-            
+
             if (debug) {
                 cerr << "i = " << i << endl;
                 cerr << "added split " << arg << " with " << missing
                      << " missing and score " << new_Z
-                     << (new_Z < Z ? " *** BEST ***" : "")
+                     << (new_Z < Z0 ? " *** BEST ***" : "")
                      << endl;
-                if (new_Z < Z) best_arg = arg;
+                if (new_Z < Z0) best_arg = arg;
             }
-            
-            Z = std::min(Z, new_Z);
+
+            Z0 = std::min(Z0, new_Z);
 
         }
-        
+
         if (debug && !finite(best_arg)) {
             cerr << "*** best_arg non finite" << endl;
         }
 
         results.finish(feature);
-        return Z;
+        return Z0;
     }
 };
 

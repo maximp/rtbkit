@@ -92,7 +92,7 @@ PyObject * to_python_exception(const std::type_info * exc_type,
                          demangle(exc_type->name()).c_str());
 
     PyErr_SetString(PyExc_RuntimeError, message.c_str());
-    
+
     return NULL;
 }
 
@@ -150,7 +150,7 @@ struct PyThreads {
                  << endl;
             abort();
         }
-        
+
         old_sigint = PyOS_setsig(SIGINT, handle_sigint);
         signals_before = num_signals_received;
         Py_UNBLOCK_THREADS;
@@ -163,7 +163,7 @@ struct PyThreads {
                  << endl;
             abort();
         }
-            
+
         Py_BLOCK_THREADS;
         PyOS_setsig(SIGINT, old_sigint);
     }
@@ -182,7 +182,7 @@ tsne_vectors_to_distances(PyObject *self, PyObject *args)
     int args_ok = PyArg_ParseTuple(args, "O!", &PyArray_Type, &in_array);
     if (!args_ok)
         return NULL;
-    
+
     /* Convert the argument to a float array. */
     PyArrayRef input_as_float32
         = PyArray_FromAny(in_array,
@@ -192,7 +192,7 @@ tsne_vectors_to_distances(PyObject *self, PyObject *args)
                           0);
     if (!input_as_float32)
         return NULL;
-    
+
     // TODO: inc reference?
 
     int n = PyArray_DIM(input_as_float32, 0);
@@ -261,7 +261,7 @@ tsne_distances_to_probabilities(PyObject *self, PyObject *args)
                           0);
     if (!input_as_float32)
         return NULL;
-    
+
     int n = PyArray_DIM(input_as_float32, 0);
     int n2 = PyArray_DIM(input_as_float32, 1);
 
@@ -295,7 +295,7 @@ tsne_distances_to_probabilities(PyObject *self, PyObject *args)
             = distances_to_probabilities(array,
                                          tolerance,
                                          perplexity);
-        
+
         if (result.shape()[0] != n || result.shape()[1] != n)
             throw Exception("wrong shapes");
 
@@ -349,7 +349,7 @@ tsne_tsne(PyObject *self, PyObject *args, PyObject * kwds)
                           0);
     if (!input_as_float32)
         return NULL;
-    
+
     int n = PyArray_DIM(input_as_float32, 0);
     int n2 = PyArray_DIM(input_as_float32, 1);
 
@@ -366,7 +366,7 @@ tsne_tsne(PyObject *self, PyObject *args, PyObject * kwds)
                             NPY_FLOAT);
     if (!result_array)
         return NULL;
-    
+
     try {
         PyThreads threads(UNBLOCK);
 
@@ -383,16 +383,18 @@ tsne_tsne(PyObject *self, PyObject *args, PyObject * kwds)
             = tsne(array, num_dims, params,
                    boost::bind(tsne_callback,
                                threads.signals_before,
-                               _1, _2, _3));
-        
+boost::placeholders::_1,
+boost::placeholders::_2,
+boost::placeholders::_3));
+
         if (threads.interrupted())
             throw Interrupt_Exception();
 
         if (result.shape()[0] != n || result.shape()[1] != num_dims)
             throw Exception("wrong shapes");
-        
+
         float * data_out = (float *)PyArray_DATA(result_array);
-        
+
         std::copy(result.data(), result.data() + n * num_dims, data_out);
     } catch (const std::exception & exc) {
         return to_python_exception(exc);

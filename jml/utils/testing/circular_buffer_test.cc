@@ -12,6 +12,9 @@
 #include "jml/utils/string_functions.h"
 #include <boost/test/unit_test.hpp>
 #include <boost/bind.hpp>
+#if BOOST_VERSION >= 106700
+#   include <boost/next_prior.hpp>
+#endif
 #include <iostream>
 #include <boost/tuple/tuple.hpp>
 #include "jml/arch/exception_handler.h"
@@ -103,7 +106,7 @@ void circular_buffer_offset_test(Circular_Buffer<int> & buf)
     BOOST_CHECK_EQUAL(buf[3], 4);
     BOOST_CHECK_EQUAL(buf[4], 5);
     BOOST_CHECK_EQUAL(buf[5], 6);
-    
+
     buf.erase_element(1);
 
     BOOST_CHECK_EQUAL(buf.size(), 5);
@@ -127,7 +130,7 @@ BOOST_AUTO_TEST_CASE( circular_buffer_test )
     BOOST_CHECK_EQUAL(buf2, buf);
 
     std::copy(buf.begin(), buf.end(), buf2.begin());
-    
+
     BOOST_CHECK_EQUAL(buf2, buf);
 
     Circular_Buffer<int> buf3;
@@ -157,7 +160,7 @@ BOOST_AUTO_TEST_CASE( circular_buffer_test )
     BOOST_CHECK_EQUAL(buf3[-1], 4);
     BOOST_CHECK_EQUAL(buf3[-2], 3);
     BOOST_CHECK_EQUAL(buf3[-3], 2);
-    
+
     buf3.pop_front();
 
     BOOST_CHECK_EQUAL(buf3.size(), 2);
@@ -166,7 +169,7 @@ BOOST_AUTO_TEST_CASE( circular_buffer_test )
     BOOST_CHECK_EQUAL(buf3[1], 4);
     BOOST_CHECK_EQUAL(buf3[-1], 4);
     BOOST_CHECK_EQUAL(buf3[-2], 3);
-    
+
     buf3.push_back(5);
 
     BOOST_CHECK_EQUAL(buf3.size(), 3);
@@ -182,17 +185,17 @@ BOOST_AUTO_TEST_CASE( circular_buffer_test )
 BOOST_AUTO_TEST_CASE( circular_buffer_offset_tests )
 {
     for (unsigned sz = 1;  sz < 8;  ++sz) {
-        
+
         cerr << endl << endl << "size " << sz << endl;
 
         for (unsigned i = 0;  i < sz;  ++i) {
-            
+
             cerr << "start " << i << endl;
 
             Circular_Buffer<int> buf;
             buf.reserve(sz);
             buf.clear(i);
-            
+
             circular_buffer_offset_test(buf);
         }
     }
@@ -217,7 +220,7 @@ void check_basic_ops_type(Vector & vec)
     BOOST_CHECK_EQUAL(copy, vec);
     copy.reserve(2);
     BOOST_CHECK_EQUAL(copy, vec);
-    
+
     vec.push_back(2);
     BOOST_CHECK_EQUAL(vec.size(), 2);
     BOOST_CHECK_EQUAL(vec.front(), 1);

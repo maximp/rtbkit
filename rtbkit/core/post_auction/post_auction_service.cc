@@ -203,20 +203,20 @@ initConnections(size_t shard)
     } else {
         LOG(print) << "No logger is set for post auction" << endl;
     }
-    
+
     auctions.onEvent = std::bind(&PostAuctionService::doAuction, this, _1);
     loop.addSource("PostAuctionService::auctions", auctions);
 
-    events.onEvent = std::bind(&PostAuctionService::doEvent, this,_1);
+    events.onEvent = std::bind(&PostAuctionService::doEvent, this, _1);
     loop.addSource("PostAuctionService::events", events);
 
     // Initialize zeromq endpoints
     endpoint.init(getServices()->config, ZMQ_XREP, serviceName() + "/events");
 
-    router.bind("AUCTION", std::bind(&PostAuctionService::doAuctionMessage, this, _1));
-    router.bind("WIN", std::bind(&PostAuctionService::doWinMessage, this, _1));
-    router.bind("LOSS", std::bind(&PostAuctionService::doLossMessage, this,_1));
-    router.bind("EVENT", std::bind(&PostAuctionService::doCampaignEventMessage, this, _1));
+    router.bind("AUCTION", std::bind(&PostAuctionService::doAuctionMessage, this, std::placeholders::_1));
+    router.bind("WIN", std::bind(&PostAuctionService::doWinMessage, this, std::placeholders::_1));
+    router.bind("LOSS", std::bind(&PostAuctionService::doLossMessage, this, std::placeholders::_1));
+    router.bind("EVENT", std::bind(&PostAuctionService::doCampaignEventMessage, this, std::placeholders::_1));
     router.defaultHandler = [=](const std::vector<std::string> & message) {
         LOG(error) << "unroutable message: " << message[0] << std::endl;
     };
@@ -236,7 +236,7 @@ initConnections(size_t shard)
 
     configListener.init(getServices()->config);
     configListener.onConfigChange =
-        std::bind(&PostAuctionService::doConfigChange, this, _1, _2);
+        std::bind(&PostAuctionService::doConfigChange, this, std::placeholders::_1, std::placeholders::_2);
     loop.addSource("PostAuctionService::configListener", configListener);
 
     // Every second we check for expired auctions

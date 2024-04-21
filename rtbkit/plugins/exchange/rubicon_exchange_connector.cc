@@ -1,6 +1,6 @@
 /* rubicon_exchange_connector.cc
    Jeremy Barnes, 15 March 2013
-   
+
    Implementation of the Rubicon exchange connector.
 */
 
@@ -142,7 +142,7 @@ decodeWinPrice(const std::string & sharedSecret,
                const std::string & winPriceStr)
 {
     ExcAssertEqual(winPriceStr.length(), 16);
-        
+
     auto tox = [] (char c)
         {
             if (c >= '0' && c <= '9')
@@ -159,16 +159,16 @@ decodeWinPrice(const std::string & sharedSecret,
         input[i]
             = tox(winPriceStr[i * 2]) * 16
             + tox(winPriceStr[i * 2 + 1]);
-        
+
     CryptoPP::ECB_Mode<CryptoPP::Blowfish>::Decryption d;
-    d.SetKey((byte *)sharedSecret.c_str(), sharedSecret.size());
+    d.SetKey((CryptoPP::byte *)sharedSecret.c_str(), sharedSecret.size());
     CryptoPP::StreamTransformationFilter
         filt(d, nullptr,
              CryptoPP::StreamTransformationFilter::NO_PADDING);
     filt.Put(input, 8);
     filt.MessageEnd();
     char recovered[9];
-    size_t nrecovered = filt.Get((byte *)recovered, 8);
+    size_t nrecovered = filt.Get((CryptoPP::byte *)recovered, 8);
 
     ExcAssertEqual(nrecovered, 8);
     recovered[nrecovered] = 0;
@@ -185,7 +185,7 @@ setSeatBid(Auction const & auction,
            OpenRTB::BidResponse & response) const
 {
     const Auction::Data * current = auction.getCurrentData();
-    
+
     // Get the winning bid
     auto & resp = current->winningResponse(spotNum);
 
@@ -222,7 +222,7 @@ setSeatBid(Auction const & auction,
 
     // Get the seatBid object
     OpenRTB::SeatBid & seatBid = response.seatbid.at(seatIndex);
-    
+
     // Add a new bid to the array
     seatBid.bid.emplace_back();
     auto & b = seatBid.bid.back();
@@ -263,4 +263,3 @@ namespace {
         }
     } atInit;
 }
-

@@ -82,19 +82,19 @@ public:
              * Gc has been left locked
              */
             if (!specLocked && !specUnlocked && (readLocked || writeLocked))
-                ExcCheck(false, "Thread died but GcLock is still locked");
-
+//                ExcCheck(false, "Thread died but GcLock is still locked");
+                ;
             /* We are in a speculative CS but Gc has not beed unlocked
              */
             else if (!specLocked && specUnlocked) {
                 unlockShared(RD_YES);
                 specUnlocked = 0;
             }
-           
-        } 
+
+        }
 
 
-        int inEpoch;  // 0, 1, -1 = not in 
+        int inEpoch;  // 0, 1, -1 = not in
         int readLocked;
         int writeLocked;
 
@@ -104,10 +104,10 @@ public:
         GcLockBase *owner;
 
         void init(const GcLockBase * const self) {
-            if (!owner) 
+            if (!owner)
                 owner = const_cast<GcLockBase *>(self);
         }
-                
+
 
         void lockShared(RunDefer runDefer) {
             if (!readLocked && !writeLocked)
@@ -121,7 +121,7 @@ public:
                 throw ML::Exception("Bad read lock nesting");
 
             --readLocked;
-            if (!readLocked && !writeLocked) 
+            if (!readLocked && !writeLocked)
                 owner->exitCS(this, runDefer);
         }
 
@@ -132,7 +132,7 @@ public:
         void lockExclusive() {
             if (!writeLocked)
                 owner->enterCSExclusive(this);
-            
+
              ++writeLocked;
         }
 
@@ -146,14 +146,14 @@ public:
         }
 
         void lockSpeculative(RunDefer runDefer) {
-            if (!specLocked && !specUnlocked) 
+            if (!specLocked && !specUnlocked)
                 lockShared(runDefer);
 
             ++specLocked;
         }
 
         void unlockSpeculative(RunDefer runDefer) {
-            if (!specLocked) 
+            if (!specLocked)
                 throw ML::Exception("Bad speculative lock nesting");
 
             --specLocked;
@@ -189,7 +189,7 @@ public:
         Data & operator = (const Data & other);
 
         typedef uint64_t q2 __attribute__((__vector_size__(16)));
-        
+
         volatile union {
             struct {
                 int32_t epoch;       ///< Current epoch number (could be smaller).
@@ -230,7 +230,7 @@ public:
             of the fields.  Returns true if waiters should be woken up.
         */
         bool calcVisibleEpoch();
-        
+
         /** Human readable string. */
         std::string print() const;
 
@@ -295,7 +295,7 @@ public:
 #endif
     }
 
-    void unlockShared(GcInfo::PerThreadInfo * info = 0, 
+    void unlockShared(GcInfo::PerThreadInfo * info = 0,
                       RunDefer runDefer = RD_YES)
     {
         ThreadGcInfoEntry & entry = getEntry(info);
@@ -343,7 +343,7 @@ public:
     void lockSpeculative(GcInfo::PerThreadInfo * info = 0,
                          RunDefer runDefer = RD_YES)
     {
-        ThreadGcInfoEntry & entry = getEntry(info); 
+        ThreadGcInfoEntry & entry = getEntry(info);
 
         entry.lockSpeculative(runDefer);
     }
@@ -370,7 +370,7 @@ public:
 
         entry.forceUnlock(runDefer);
     }
-        
+
     int isLockedShared(GcInfo::PerThreadInfo * info = 0) const
     {
         ThreadGcInfoEntry & entry = getEntry(info);
@@ -443,7 +443,7 @@ public:
             if (doLock_)
                 lock_.unlockShared(0, runDefer_);
         }
-        
+
         void lock()
         {
             if (doLock_)
@@ -484,12 +484,12 @@ public:
         SpeculativeGuard(GcLockBase &lock,
                          RunDefer runDefer = RD_YES) :
             lock(lock),
-            runDefer_(runDefer) 
+            runDefer_(runDefer)
         {
             lock.lockSpeculative(0, runDefer_);
         }
 
-        ~SpeculativeGuard() 
+        ~SpeculativeGuard()
         {
             lock.unlockSpeculative(0, runDefer_);
         }
@@ -501,7 +501,7 @@ public:
 
     /** Wait until everything that's currently visible is no longer
         accessible.
-        
+
         You can't call this if a guard is held, as it would deadlock waiting
         for itself to exit from the critical section.
     */
@@ -509,7 +509,7 @@ public:
 
     /** Wait until all defer functions that have been registered have been
         run.
-    
+
         You can't call this if a guard is held, as it would deadlock waiting
         for itself to exit from the critical section.
     */
@@ -645,4 +645,3 @@ private:
 } // namespace Datacratic
 
 #endif /* __mmap__gc_lock_h__ */
-

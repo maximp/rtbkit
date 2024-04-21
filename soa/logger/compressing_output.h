@@ -74,7 +74,7 @@ protected:
                                      const std::string & message) = 0;
 
     /// Thread to do the logging
-    boost::scoped_ptr<boost::thread> logThread;
+    boost::shared_ptr<boost::thread> logThread;
 
     /// Thread to run the logging
     void runLogThread();
@@ -110,7 +110,7 @@ struct CompressingOutput : public WorkerThreadOutput {
 
         /** Function that closes the given sink. */
         virtual void close() = 0;
-        
+
         /** Function that should be overwritten to write data when it's
             output by the compressor.
         */

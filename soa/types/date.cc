@@ -52,7 +52,7 @@ matchFixedWidthInt(ML::Parse_Context & context,
     char * endptr = 0;
     errno = 0;
     int result = strtol(buf, &endptr, 10);
-    
+
     if (errno || *endptr != 0 || endptr != buf + i)
         context.exception("expected fixed width int");
 
@@ -329,7 +329,7 @@ printIso8601(unsigned int fraction) const
 
     if (result == "Inf" || result == "-Inf" || result == "NaD")
         return result;
-    
+
     double partial_seconds = fractionalSeconds();
     string fractional = format("%.*fZ", fraction, partial_seconds);
 
@@ -424,10 +424,10 @@ print(const std::string & format) const
     }
     size_t nchars = strftime(buffer, buffer_size, format.c_str(),
                              &time);
-    
+
     if (nchars == 0)
         throw Exception("couldn't print date format " + format);
-    
+
     return string(buffer, buffer + nchars);
 }
 
@@ -623,15 +623,15 @@ match_date(ML::Parse_Context & context,
            const std::string & format)
 {
     Parse_Context::Revert_Token token(context);
-    
+
     int year = -1, month = 1, day = 1;
-    
+
     for (const char * f = format.c_str();  context && *f;  ++f) {
         if (*f != '%') {
             if (!context.match_literal(*f)) return false;
             continue;
         }
-        
+
         ++f;
         switch (*f) {
         case '%':
@@ -740,7 +740,7 @@ match_date(ML::Parse_Context & context,
                             + " not implemented yet");
         }
     }
-    
+
     try {
         boost::gregorian::date date(year, month, day);
         boost::posix_time::ptime time(date);
@@ -763,7 +763,7 @@ expect_date(ML::Parse_Context & context, const std::string & format)
             context.expect_literal(*f);
             continue;
         }
-        
+
         ++f;
         switch (*f) {
         case '%':
@@ -875,10 +875,10 @@ expect_date(ML::Parse_Context & context, const std::string & format)
                             + " not implemented yet");
         }
     }
-    
+
     //cerr << "year = " << year << " month = " << month
     //     << " day = " << day << endl;
-    
+
     try {
         boost::gregorian::date date(year, month, day);
         boost::posix_time::ptime time(date);
@@ -916,13 +916,13 @@ match_time(ML::Parse_Context & context,
     int hour = 0, minute = 0, offset = 0;
     double second = 0;
     bool twelve_hour = false;
-    
+
     for (const char * f = format.c_str();  context && *f;  ++f) {
         if (*f != '%') {
             if (!context.match_literal(*f)) return false;
             continue;
         }
-        
+
         ++f;
         switch (*f) {
         case '%':
@@ -960,13 +960,13 @@ match_time(ML::Parse_Context & context,
             }
             else return false;
             break;
-            
+
         default:
             throw Exception("expect_time: format " + string(1, *f)
                             + " not implemented yet");
         }
     }
-    
+
     if (twelve_hour) {
         if (hour < 1 || hour > 12)
             return false;
@@ -976,9 +976,9 @@ match_time(ML::Parse_Context & context,
 
     double fractional_sec, full_sec;
     fractional_sec = modf(second, &full_sec);
-    
+
     using namespace boost::posix_time;
-    result = (hours(hour) + minutes(minute) + seconds(full_sec)).total_seconds()
+    result = (hours(hour) + minutes(minute) + seconds(static_cast<long>(full_sec))).total_seconds()
         + fractional_sec;
     token.ignore();
     return true;
@@ -991,13 +991,13 @@ expect_time(ML::Parse_Context & context, const std::string & format)
     int hour = 0, minute = 0, offset = 0;
     double second = 0;
     bool twelve_hour = false;
-    
+
     for (const char * f = format.c_str();  context && *f;  ++f) {
         if (*f != '%') {
             context.expect_literal(*f);
             continue;
         }
-        
+
         ++f;
         switch (*f) {
         case '%':
@@ -1033,13 +1033,13 @@ expect_time(ML::Parse_Context & context, const std::string & format)
             }
             else context.exception("expected AM or PM");
             break;
-            
+
         default:
             throw Exception("expect_time: format " + string(1, *f)
                             + " not implemented yet");
         }
     }
-    
+
     if (twelve_hour) {
         if (hour < 1 || hour > 12)
             context.exception("invalid hour after 12 hours");
@@ -1049,10 +1049,10 @@ expect_time(ML::Parse_Context & context, const std::string & format)
 
     double fractional_sec, full_sec;
     fractional_sec = modf(second, &full_sec);
-    
+
     using namespace boost::posix_time;
-    return (hours(hour) + minutes(minute) + seconds(full_sec)).total_seconds()
-        + fractional_sec;
+    return (hours(hour) + minutes(minute) + seconds(static_cast<long>(full_sec))).total_seconds()
+        + static_cast<long>(fractional_sec);
 }
 
 #if 0
@@ -1070,19 +1070,19 @@ expect_time(ML::Parse_Context & context,
 
 
 
-/** 
+/**
     DEPRECATED FUNCTION documentation:
     This function takes a string expected to contain a date that matches the
     provided date pattern, followed by a time. The two patterns in the
     string can be separated by whitespace but anything else has to appear in
-    the patterns. 
-    
+    the patterns.
+
     example:
 
         parse_date_time("2013-05-13/21:00:00", "%y-%m-%d/","%H:%M:%S")
 
     returns 2013-May-13 21:00:00.
-    
+
     symbols meanings:
         date_format:
             %d      day of month as digit 1-31
@@ -1103,22 +1103,22 @@ parse_date_time(const std::string & str,
                 const std::string & time_format)
 {
     using namespace boost::posix_time;
-    
+
     if (str == "") return Date::notADate();
-    
+
     Date result;
     try {
         ML::Parse_Context context(str,
                                   str.c_str(), str.c_str() + str.length());
         result = expect_date_time(context, date_format, time_format);
-        
+
         context.expect_eof();
     }
     catch (const std::exception & exc) {
         //cerr << "Error parsing date string:\n'" << str << "'" << endl;
         throw;
     }
-    
+
     return result;
 }
 
@@ -1130,16 +1130,16 @@ expect_date_time(ML::Parse_Context & context,
 {
     Date date;
     double time = 0.0;
-    
+
     date = expect_date(context, date_format);
-    
+
     if (!context.eof()) {
         Parse_Context::Revert_Token token(context);
         context.match_whitespace();
         if (match_time(context, time, time_format))
             token.ignore();
     }
-    
+
     return date.plusSeconds(time);
 }
 
@@ -1152,7 +1152,7 @@ match_date_time(ML::Parse_Context & context,
 {
     Date date;
     double time = 0.0;
-    
+
     if (!match_date(context, date, date_format)) return false;
     context.match_whitespace();
     match_time(context, time, time_format);
@@ -1288,7 +1288,7 @@ expectDateTime()
 
     return date;
 }
-    
+
 Date
 Iso8601Parser::
 expectDate()

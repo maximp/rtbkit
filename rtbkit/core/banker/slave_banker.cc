@@ -192,7 +192,7 @@ init(const std::string & accountSuffix,
     LOG(print) << "Spend Rate: " << spendRate.toJson().toString();
 
     lastSync = lastReauthorize = Date::now();
-    
+
     addPeriodic("SlaveBanker::reportSpend", syncRate,
                 std::bind(&SlaveBanker::reportSpend,
                           this,
@@ -238,7 +238,7 @@ onSyncResult(const AccountKey & accountKey,
         //cerr << "got result from master for " << accountKey
         //     << " which is "
         //     << masterAccount << endl;
-        
+
         result = accounts.syncFromMaster(accountKey, masterAccount);
     } catch (...) {
         onDone(std::current_exception(), std::move(result));
@@ -271,7 +271,7 @@ onInitializeResult(const AccountKey & accountKey,
     } catch (...) {
         onDone(std::current_exception(), std::move(result));
     }
-    
+
     try {
         onDone(nullptr, std::move(result));
     } catch (...) {
@@ -371,7 +371,7 @@ syncAll(std::function<void (std::exception_ptr)> onDone)
         };
 
         std::shared_ptr<Itl> itl;
-        
+
         void operator () (std::exception_ptr exc, ShadowAccount && account)
         {
             if (exc)
@@ -391,9 +391,9 @@ syncAll(std::function<void (std::exception_ptr)> onDone)
                              << "exception" << endl;
                 }
             }
-        }               
+        }
     };
-    
+
     Aggregator aggregator(const_cast<SlaveBanker *>(this), allKeys.size(), onDone);
 
     //cerr << "syncing " << allKeys.size() << " keys" << endl;
@@ -460,7 +460,7 @@ reportSpend(uint64_t numTimeoutsExpired)
             if (exc)
                 logException(exc, "Exception when reporting spend", error);
         };
-    
+
     syncAll(onDone);
 }
 
@@ -552,7 +552,7 @@ reauthorizeBudget(uint64_t numTimeoutsExpired)
                             onDone);
         };
     accounts.forEachInitializedAndActiveAccount(onAccount);
-    
+
     if (accountsLeft > 0) {
         reauthorizing = true;
         reauthorizeDate = Date::now();

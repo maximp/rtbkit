@@ -97,7 +97,7 @@ struct EndpointBase : public Epoller {
 
     /** Dump the state of the endpoint for debugging. */
     virtual void dumpState() const;
-    
+
     /** Return the number of connections for this client. */
     virtual int numConnections() const;
 
@@ -112,7 +112,7 @@ struct EndpointBase : public Epoller {
         std::vector<rusage> result;
         std::lock_guard<std::mutex> guard(usageLock);
         result = resourceUsage;
-        return std::move(result);
+        return result;
     }
 
     /** Thing to notify when a connection is closed.  Will be called
@@ -190,7 +190,7 @@ protected:
             throw ML::Exception("either makeNewTransport or associateHandler"
                                 "need to be overridden to make a handler");
     }
-    
+
     struct SPLess {
         template<typename SP>
         bool operator () (const SP & sp1, const SP & sp2) const
@@ -255,7 +255,7 @@ protected:
 
     /** released when there are no active connections */
     mutable ACE_Semaphore idle;
-    
+
     /** Should the endpoint class manipulate the idle count? */
     mutable bool modifyIdle;
 

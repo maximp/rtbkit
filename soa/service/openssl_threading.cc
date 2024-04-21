@@ -29,8 +29,6 @@ struct CRYPTO_dynlock_value {
 }
 
 
-namespace {
-
 std::mutex initLock;
 bool threadingInit(false);
 
@@ -96,8 +94,6 @@ setupCallbacks()
     CRYPTO_set_dynlock_create_callback(dynLockCreateFunc);
     CRYPTO_set_dynlock_lock_callback(dynLockLockFunc);
     CRYPTO_set_dynlock_destroy_callback(dynLockDestroyFunc);
-}
-
 }
 
 void

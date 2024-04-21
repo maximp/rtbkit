@@ -12,6 +12,10 @@
 #include "leveldb/db.h"
 #include "jml/utils/guard.h"
 
+#if BOOST_VERSION >= 106700
+#   include <boost/next_prior.hpp>
+#endif
+
 namespace Datacratic {
 
 struct PendingPersistence {
@@ -67,7 +71,7 @@ struct LeveldbPendingPersistence : public PendingPersistence {
         const leveldb::Snapshot * snapshot
             = db->GetSnapshot();
         ML::Call_Guard guard([&] () { this->db->ReleaseSnapshot(snapshot); });
-        
+
         leveldb::ReadOptions options;
         options.verify_checksums = false;
         options.snapshot = snapshot;
@@ -269,7 +273,7 @@ struct PendingList {
                     cerr << "error reconstituting pending entry" << endl;
                 }
             };
-        
+
         std::vector<std::string> toDelete;
 
         auto onError = [&] (const std::string & key,
@@ -314,7 +318,7 @@ struct PendingList {
                     this->persistence->put(key, value);
                 return newExpiry;
             };
-        
+
         timeouts.expire(myCallback, now);
     }
 
@@ -324,7 +328,7 @@ struct PendingList {
             {
                 return Date();
             };
-        
+
         expire(myCallback, now);
     }
 
@@ -377,7 +381,7 @@ struct PendingList {
             //cerr << "  *** isPrefix(" << it2->first << "," << key << ") returned true" << endl;
             return it2->first;
         }
-        
+
         //cerr << "  *** no match" << endl;
         return Key();
     }
@@ -394,7 +398,7 @@ struct PendingList {
         auto it2 = boost::next(it);
         if (it2 == timeouts.nodes.end())
             return Key();
-        
+
         return it->first;
     }
 #endif
@@ -402,7 +406,7 @@ struct PendingList {
     bool erase(const Key & key)
     {
         bool result = timeouts.erase(key);
-        if (result && persistence) 
+        if (result && persistence)
             persistence->erase(key);
         return result;
     }
@@ -446,4 +450,3 @@ struct PendingList {
 
 
 #endif /* __router__pending_list_h__ */
-

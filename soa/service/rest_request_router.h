@@ -15,6 +15,7 @@
 #include "jml/arch/demangle.h"
 //#include <regex>
 #include <boost/regex.hpp>
+#include <functional>
 
 namespace Datacratic {
 
@@ -36,7 +37,7 @@ struct PathSpec {
         : type(NONE)
     {
     }
-        
+
     PathSpec(const std::string & fullPath)
         : type(STRING), path(fullPath)
     {
@@ -70,7 +71,7 @@ struct PathSpec {
             throw ML::Exception("unknown path parameter");
         }
     }
-    
+
     std::string getPathDesc() const
     {
         if (!desc.empty())
@@ -255,12 +256,12 @@ struct RestRequestParsingContext {
     struct ObjectEntry {
         ObjectEntry(void * obj = nullptr,
                     const std::type_info * type = nullptr,
-                    std::function<void (void *) noexcept> deleter = nullptr)
+                    std::function<void (void *)> deleter = nullptr)
             : obj(obj), type(type), deleter(std::move(deleter))
         {
         }
 
-        ~ObjectEntry() noexcept
+        ~ObjectEntry()
         {
             if (deleter)
                 deleter(obj);
@@ -268,7 +269,7 @@ struct RestRequestParsingContext {
 
         void * obj;
         const std::type_info * type;
-        std::function<void (void *) noexcept> deleter;
+        std::function<void (void *)> deleter;
 
         //ObjectEntry(const ObjectEntry &) = delete;
         //void operator = (const ObjectEntry &) = delete;
@@ -366,7 +367,7 @@ struct RestRequestRouter {
         MR_YES,    ///< Did match
         MR_ERROR,  ///< Error
         MR_ASYNC   ///< Handled, but asynchronously
-    };    
+    };
 
     typedef std::function<MatchResult (const RestServiceEndpoint::ConnectionId & connection,
                                        const RestRequest & request,
@@ -381,7 +382,7 @@ struct RestRequestRouter {
                       const Json::Value & argHelp = Json::Value());
 
     virtual ~RestRequestRouter();
-    
+
     /** Return a requestHandler that can be assigned to the
         RestServiceEndpoint.
     */
@@ -403,9 +404,9 @@ struct RestRequestRouter {
     /** Type of a function that is called by the route after matching to extract any
         objects referred to so that they can be added to the context and made
         available to futher event handlers.
-        
+
         Sample usage:
-        
+
         // Verify that the given subject is indeed present in the behaviour domain
         auto verifySubject = [=] (const RestServiceEndpoint::ConnectionId & connection,
                                   const RestRequest & request,
@@ -433,7 +434,7 @@ struct RestRequestRouter {
                                     "operations on an individual subject",
                                     verifySubject);
     */
-    
+
     typedef std::function<void(const RestServiceEndpoint::ConnectionId & connection,
                                const RestRequest & request,
                                RestRequestParsingContext & context)> ExtractObject;
@@ -538,7 +539,7 @@ struct RestRequestRouter {
         subRoutes.push_back(route);
         return *res;
     }
-    
+
     OnProcessRequest rootHandler;
     std::vector<Route> subRoutes;
     std::string description;

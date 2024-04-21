@@ -1,10 +1,10 @@
 /* filter_streams.cc
    Jeremy Barnes, 17 March 2005
    Copyright (c) 2005 Jeremy Barnes.  All rights reserved.
-   
+
    This file is part of "Jeremy's Machine Learning Library", copyright (c)
    1999-2005 Jeremy Barnes.
-   
+
    This program is available under the GNU General Public License, the terms
    of which are given by the file "license.txt" in the top level directory of
    the source code distribution.  If this file is missing, you have no right
@@ -16,7 +16,7 @@
    for more details.
 
    ---
-   
+
    Implementation of filter streams.
 */
 
@@ -39,6 +39,7 @@
 #include <unordered_map>
 #include "lzma.h"
 #include "lz4_filter.h"
+#include <ios>
 
 
 using namespace std;
@@ -187,7 +188,7 @@ void addCompression(streambuf & buf,
     }
     else if (compression != "" && compression != "none")
         throw ML::Exception("unknown filter compression " + compression);
-    
+
 }
 
 void addCompression(streambuf & buf,
@@ -204,7 +205,7 @@ void addCompression(streambuf & buf,
     it = options.find("compressionLevel");
     if (it != options.end())
         compressionLevel = boost::lexical_cast<int>(it->second);
-    
+
     addCompression(buf, stream, resource, compression, compressionLevel);
 }
 
@@ -215,7 +216,7 @@ createOptions(std::ios_base::openmode mode,
               const std::string & compression,
               int compressionLevel)
 {
-    /* 
+    /*
 app	(append) Set the stream's position indicator to the end of the stream before each output operation.
 ate	(at end) Set the stream's position indicator to the end of the stream on opening.
 binary	(binary) Consider stream as binary rather than text.
@@ -300,11 +301,11 @@ open(const std::string & uri, std::ios_base::openmode mode,
 void
 filter_ostream::
 open(const std::string & uri, std::ios_base::openmode mode,
-     const std::string & compression, int compressionLevel, 
+     const std::string & compression, int compressionLevel,
      unsigned int numThreads)
 {
     //cerr << "uri = " << uri << " compression = " << compression << endl;
-    std::map<std::string, std::string>  options = 
+    std::map<std::string, std::string>  options =
          createOptions(mode, compression, compressionLevel);
     // add the number of threads to the options
     options["num-threads"] = to_string(numThreads);
@@ -335,7 +336,7 @@ open(const std::string & uri,
     auto onException = [&]() { this->deferredFailure = true; };
     std::tie(buf, weOwnBuf) = handler(scheme, resource, mode, options,
                                       onException);
-    
+
     return openFromStreambuf(buf, weOwnBuf, resource, options);
 }
 
@@ -350,7 +351,7 @@ openFromStreambuf(std::streambuf * buf,
     openFromStreambuf(buf, weOwnBuf, resource,
                       createOptions(std::ios_base::openmode(0),
                                     compression, compressionLevel));
-}    
+}
 
 void
 filter_ostream::
@@ -396,7 +397,7 @@ void filter_ostream::
 open(int fd, const std::map<std::string, std::string> & options)
 {
     using namespace boost::iostreams;
-    
+
     unique_ptr<filtering_ostream> new_stream
         (new filtering_ostream());
 
@@ -544,7 +545,7 @@ openFromStreambuf(std::streambuf * buf,
     std::unique_ptr<std::streambuf> sink;
     if (weOwnBuf)
         sink.reset(buf);
-    
+
     unique_ptr<filtering_istream> new_stream
         (new filtering_istream());
 
@@ -651,7 +652,7 @@ struct RegisterFileHandler {
     static std::pair<std::streambuf *, bool>
     getFileHandler(const std::string & scheme,
                    std::string resource,
-                   std::ios_base::open_mode mode,
+                   std::ios_base::openmode mode,
                    const std::map<std::string, std::string> & options,
                    const OnUriHandlerException & onException)
     {
@@ -709,7 +710,7 @@ getMemStreamString(const string & name)
 {
     unique_lock<mutex> guard(memStringsLock);
 
-    return memStrings.at(name);    
+    return memStrings.at(name);
 }
 
 void
@@ -726,7 +727,7 @@ deleteMemStreamString(const std::string & name)
 {
     unique_lock<mutex> guard(memStringsLock);
 
-    memStrings.erase(name);    
+    memStrings.erase(name);
 }
 
 void
@@ -825,7 +826,7 @@ struct RegisterMemHandler {
     static pair<streambuf *, bool>
     getMemHandler(const string & scheme,
                   string resource,
-                  ios_base::open_mode mode,
+                  std::ios_base::openmode mode,
                   const map<string, string> & options,
                   const OnUriHandlerException & onException)
     {

@@ -80,15 +80,15 @@ init(size_t numShards)
     using std::placeholders::_1;
 
     matchedWinLossEvents.onEvent =
-        std::bind(&ShardedEventMatcher::doMatchedWinLoss, this, _1);
+        std::bind(&ShardedEventMatcher::doMatchedWinLoss, this, std::placeholders::_1);
     addSource("SahrdedEventMatcher::matchedWinLossEvents", matchedWinLossEvents);
 
     matchedCampaignEvents.onEvent =
-        std::bind(&ShardedEventMatcher::doMatchedCampaignEvent, this, _1);
+        std::bind(&ShardedEventMatcher::doMatchedCampaignEvent, this, std::placeholders::_1);
     addSource("SahrdedEventMatcher::matchedCampaignEvents", matchedCampaignEvents);
 
     unmatchedEvents.onEvent =
-        std::bind(&ShardedEventMatcher::doUnmatchedEvent, this, _1);
+        std::bind(&ShardedEventMatcher::doUnmatchedEvent, this, std::placeholders::_1);
     addSource("SahrdedEventMatcher::unmatchedEvents", unmatchedEvents);
 
     errorEvents.onEvent = [=] (std::shared_ptr<PostAuctionErrorEvent> event) {

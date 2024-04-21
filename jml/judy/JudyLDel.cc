@@ -58,6 +58,9 @@
 #error:  One of -DJUDY1 or -DJUDYL must be specified.
 #endif
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+
 #ifdef JUDY1
 #include "Judy1.h"
 #else
@@ -1782,13 +1785,13 @@ JUDYLCODE(A_ddr = Pjv[offset];)                                         \
         {
             switch (retcode)
             {
-            case 1: 
+            case 1:
             {
                 jp_t JP = *Pjp;
                 Word_t DcdP0;
 
                 DcdP0 = JU_JPDCDPOP0(Pjp) - 1;          // decrement count.
-                JU_JPSETADT(Pjp, JP.jp_Addr, DcdP0, JU_JPTYPE(&JP)); 
+                JU_JPSETADT(Pjp, JP.jp_Addr, DcdP0, JU_JPTYPE(&JP));
                 break;
             }
             case 2:     // collapse BranchL to single JP; see above:
@@ -1815,7 +1818,7 @@ JUDYLCODE(A_ddr = Pjv[offset];)                                         \
 // Main entry point.  See the manual entry for details.
 
 #ifdef JUDY1
-FUNCTION int Judy1Unset 
+FUNCTION int Judy1Unset
 #else
 FUNCTION int JudyLDel
 #endif
@@ -1930,7 +1933,7 @@ JUDYLCODE(PPvoid_t PPvalue;)  // pointer from JudyLGet().
             j__udyFreeJLW(Pjlw, pop1, (Pjpm_t) NULL);
 
 ////        *PPArray = (Pvoid_t)  Pjlwnew | cJU_LEAFW);
-            *PPArray = (Pvoid_t)  Pjlwnew; 
+            *PPArray = (Pvoid_t)  Pjlwnew;
             DBGCODE(JudyCheckPop(*PPArray);)
             return(1);
 
@@ -1959,7 +1962,7 @@ JUDYLCODE(PPvoid_t PPvalue;)  // pointer from JudyLGet().
                 || ((Pjpm->jpm_JP.jp_Type) == cJU_JPBRANCH_B)
                 || ((Pjpm->jpm_JP.jp_Type) == cJU_JPBRANCH_U));
 
-// WALK THE TREE 
+// WALK THE TREE
 //
 // Note:  Recursive code in j__udyDelWalk() knows how to collapse a lower-level
 // BranchL containing a single JP into the parent JP as a narrow pointer, but
@@ -2142,7 +2145,10 @@ JUDYLCODE(PPvoid_t PPvalue;)  // pointer from JudyLGet().
             DBGCODE(JudyCheckPop(*PPArray);)
             return(1);
 
-        } 
+        }
         /*NOTREACHED*/
 
 } // Judy1Unset() / JudyLDel()
+
+
+#pragma GCC diagnostic pop

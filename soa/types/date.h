@@ -138,7 +138,7 @@ struct Date {
     {
         return secondsSinceEpoch_ - other.secondsSinceEpoch_;
     }
-    
+
     Date & setMin(Date other)
     {
         secondsSinceEpoch_ = std::min(secondsSinceEpoch_,
@@ -335,7 +335,7 @@ struct Date {
                             const std::string & format);
     static bool match_date(ML::Parse_Context & context, Date & date,
                            const std::string & format);
-    
+
     static double expect_time(ML::Parse_Context & context,
                               const std::string & format);
     static bool match_time(ML::Parse_Context & context,
@@ -373,9 +373,9 @@ struct Date {
     {
         return boost::posix_time::from_time_t(toTimeT())
             + boost::posix_time::microseconds
-            (1000000 * fractionalSeconds());
+            (static_cast<long>(1000000 * fractionalSeconds()));
     }
-    
+
     /** Convert to a std::chrono::time_point<std::chrono::system_clock>
         for the standard timing functions.
     */

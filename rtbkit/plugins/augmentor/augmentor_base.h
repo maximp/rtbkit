@@ -158,7 +158,7 @@ private:
 
     void setup()
     {
-        doRequest = boost::bind(&SyncAugmentor::onRequest, this, _1);
+        doRequest = boost::bind(&SyncAugmentor::onRequest, this, boost::placeholders::_1);
 
         handleRequest = [=] (const AugmentationRequest & request) {
             AugmentationList response = doRequest(request);
@@ -215,7 +215,7 @@ private:
 
     void setup()
     {
-        doRequest = boost::bind(&AsyncAugmentor::onRequest, this, _1, _2);
+        doRequest = boost::bind(&AsyncAugmentor::onRequest, this, boost::placeholders::_1, boost::placeholders::_2);
 
         handleRequest = [=] (const AugmentationRequest & request) {
             auto sendResponse = [=](const AugmentationList & response) {
@@ -231,5 +231,3 @@ private:
 
 
 #endif /* __rtb__augmentor_base_h__ */
-
-

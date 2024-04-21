@@ -15,7 +15,7 @@
 #include "soa/service/zmq_endpoint.h"
 #include "soa/service/service_base.h"
 #include "echo_service.h"
-#include <sys/stat.h> 
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <cstdint>
 
@@ -44,8 +44,8 @@ public:
     }
 
     std::shared_ptr<ServiceProxies>
-    createProxies(const std::string &host, 
-                  const std::string &name = "DEFAULT") 
+    createProxies(const std::string &host,
+                  const std::string &name = "DEFAULT")
     {
         if (getFromMap(proxiesMap, name))
             throw ML::Exception(ML::format("Proxies with name '%s' already exist",
@@ -60,7 +60,7 @@ public:
     }
 
     int
-    startTemporaryServer() 
+    startTemporaryServer()
     {
         zooServer.reset(new ZooKeeper::TemporaryServer);
         zooServer->start();
@@ -109,12 +109,13 @@ public:
         servicesMap.clear();
 
         if (zooServer)
+        {
             zooServer->shutdown();
             zooServer.reset(nullptr);
-
+        }
     }
 
-    std::shared_ptr<ZmqMultipleNamedClientBusProxy> 
+    std::shared_ptr<ZmqMultipleNamedClientBusProxy>
     createConnection(const std::string &name,
                      const std::string &proxiesName = "DEFAULT")
     {
@@ -138,15 +139,15 @@ public:
 
     std::shared_ptr<ZmqMultipleNamedClientBusProxy>
     createConnectionAndStart(const std::string &name,
-                             const std::string &proxiesName = "DEFAULT") 
+                             const std::string &proxiesName = "DEFAULT")
     {
         auto conn = createConnection(name, proxiesName);
         conn->start();
 
         return conn;
-    }    
+    }
 
-    std::shared_ptr<ZmqMultipleNamedClientBusProxy> 
+    std::shared_ptr<ZmqMultipleNamedClientBusProxy>
     connectServiceProviders(const std::string &clientName,
                             const std::string &serviceClass,
                             const std::string &endpointName)
@@ -174,14 +175,14 @@ public:
     }
 
     std::shared_ptr<EchoService>
-    createService(const std::string &name, 
+    createService(const std::string &name,
                   const std::string &proxiesName = "DEFAULT")
     {
         auto proxies = getFromMap(proxiesMap, proxiesName);
         if (!proxies)
             throw ML::Exception(ML::format("Proxies with name '%s' does not "
                                            "exist", proxiesName.c_str()));
-        
+
         auto service = std::make_shared<EchoService>(proxies, name);
         service->init();
         service->bindTcp();
@@ -205,7 +206,7 @@ public:
     expireSession(const std::string &proxiesName = "DEFAULT")
     {
         auto proxies = getFromMap(proxiesMap, proxiesName);
-        if (!proxies) 
+        if (!proxies)
             throw ML::Exception(ML::format("Proxies with name '%s' does not exist",
                                            proxiesName.c_str()));
 
@@ -231,7 +232,7 @@ public:
     reconnectSession(const std::string &proxiesName = "DEFAULT")
     {
         auto proxies = getFromMap(proxiesMap, proxiesName);
-        if (!proxies) 
+        if (!proxies)
             throw ML::Exception(ML::format("Proxies with name '%s' does not exist",
                                            proxiesName.c_str()));
 
@@ -247,7 +248,7 @@ private:
     enum ServerStatus {
         Down,
         Suspended,
-        Running 
+        Running
     } serverStatus;
 
     typedef std::map<std::string, std::shared_ptr<ZmqMultipleNamedClientBusProxy>>
@@ -264,15 +265,15 @@ private:
     std::unique_ptr<ZooKeeper::TemporaryServer> zooServer;
 
     template<typename Map>
-    typename Map::mapped_type 
+    typename Map::mapped_type
     getFromMap(const Map &map, const std::string &name)
     {
         auto it = map.find(name);
-        if (it == end(map)) 
+        if (it == end(map))
             return nullptr;
 
         return it->second;
-    } 
+    }
 
 };
 
@@ -298,7 +299,7 @@ public:
         auto client = scenario.getFromMap(scenario.clientsMap,
                                           clientName);
 
-        BOOST_CHECK_EQUAL(client->changesCount[ConfigurationService::CREATED], 
+        BOOST_CHECK_EQUAL(client->changesCount[ConfigurationService::CREATED],
                           count);
     }
 

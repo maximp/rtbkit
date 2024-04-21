@@ -95,7 +95,7 @@ struct ValueDescription {
     }
 
     virtual ~ValueDescription() {};
-    
+
     ValueKind kind;
     const std::type_info * type;
     std::string typeName;
@@ -115,7 +115,7 @@ struct ValueDescription {
     virtual void * constructDefault() const = 0;
     virtual void destroy(void *) const = 0;
 
-    
+
     virtual void * optionalMakeValue(void * val) const
     {
         throw ML::Exception("type is not optional");
@@ -155,7 +155,7 @@ struct ValueDescription {
     {
         throw ML::Exception("type is not an array");
     }
-    
+
     virtual const ValueDescription & contained() const
     {
         throw ML::Exception("type does not contain another");
@@ -214,7 +214,7 @@ struct ValueDescription {
         throw ML::Exception("type doesn't support fields");
     }
 
-    virtual const FieldDescription & 
+    virtual const FieldDescription &
     getField(const std::string & field) const
     {
         throw ML::Exception("type doesn't support fields");
@@ -368,7 +368,7 @@ struct PureValueDescription : public ValueDescription {
 /** Template class for value description.  This is a type-safe version of a
     value description.
 */
-    
+
 template<typename T>
 struct ValueDescriptionT : public ValueDescription {
 
@@ -534,7 +534,7 @@ getDefaultDescription(T * = 0,
 /** This function is used to get a default description that is uninitialized.
     It's necessary when working with recursive data types, as the object needs
     to be registered before it can be initialized.
-    
+
     The default implementation simply uses getDefaultDescription().
 */
 template<typename T>
@@ -599,7 +599,7 @@ getDefaultDescriptionShared(T * = 0)
                     (desc);
                 initializeDefaultDescription(descTyped);
             };
-        
+
         // For now, register it if it wasn't before.  Eventually this should
         // be done elsewhere.
         registerValueDescription(typeid(T), createFn, initFn, true);
@@ -638,7 +638,7 @@ struct GetDefaultDescriptionMaybe<T, decltype(getDefaultDescription((T *)0))> {
 /** Return the default description for the given type if it exists, or
     otherwise return a null pointer.
 */
-    
+
 template<typename T>
 inline std::shared_ptr<const ValueDescription>
 maybeGetDefaultDescriptionShared(T * = 0)
@@ -681,12 +681,12 @@ RegisterValueDescriptionI<T, Impl>
 ValueDescriptionI<T, kind, Impl>::
 regme;
 
-inline constexpr void * addOffset(void * base, ssize_t offset)
+inline void * addOffset(void * base, ssize_t offset)
 {
     return reinterpret_cast<char *>(base) + offset;
 }
 
-inline constexpr const void * addOffset(const void * base, ssize_t offset)
+inline const void * addOffset(const void * base, ssize_t offset)
 {
     return reinterpret_cast<const char *>(base) + offset;
 }
@@ -707,7 +707,7 @@ struct ValueDescriptionWithDefault : public Base {
         : defaultValue(defaultValue)
     {
     }
-    
+
     virtual void parseJsonTyped(T * val,
                                 JsonParsingContext & context) const
     {
@@ -774,7 +774,7 @@ struct StructureDescriptionBase {
             if (c1 == 0) return false;
 
             c1 = *s1++; c2 = *s2++;
-            
+
             if (c1 < c2) return true;
             if (c1 > c2) return false;
             if (c1 == 0) return false;
@@ -784,7 +784,7 @@ struct StructureDescriptionBase {
 
     };
 
-    typedef std::map<const char *, FieldDescription, StrCompare> Fields;
+    typedef std::map<std::string, FieldDescription> Fields;
     Fields fields;
 
     std::vector<std::string> fieldNames;
@@ -813,7 +813,7 @@ struct StructureDescriptionBase {
                 context.expectNull();
                 return;
             }
-        
+
             if (!context.isObject())
                 context.exception("expected structure of type " + structName);
 
@@ -871,7 +871,7 @@ struct StructureDescriptionBase {
             context.startMember(it->first);
             fd.description->printJson(mbr, context);
         }
-        
+
         context.endObject();
     }
 
@@ -915,13 +915,13 @@ struct StructureDescription
             if (!onEntryHandler((Struct *)output, context))
                 return false;
         }
-        
+
         if (onUnknownField)
             context.onUnknownFieldHandlers.push_back([=,&context] (const ValueDescription *) { this->onUnknownField((Struct *)output, context); });
 
         return true;
     }
-    
+
     virtual void onExit(void * output, JsonParsingContext & context) const
     {
         if (onUnknownField)
@@ -964,11 +964,11 @@ struct StructureDescription
 
         fieldNames.push_back(name);
         const char * fieldName = fieldNames.back().c_str();
-        
+
         auto it = fields.insert
             (Fields::value_type(fieldName, std::move(FieldDescription())))
             .first;
-        
+
         FieldDescription & fd = it->second;
         fd.fieldName = fieldName;
         fd.comment = comment;
@@ -1020,7 +1020,7 @@ struct StructureDescription
         }
     }
 
-    virtual const FieldDescription & 
+    virtual const FieldDescription &
     getField(const std::string & field) const
     {
         auto it = fields.find(field.c_str());
@@ -1066,13 +1066,13 @@ struct StructureDescription
 template<typename Struct, typename Impl>
 struct StructureDescriptionImpl
     :  public StructureDescription<Struct> {
-    
+
     StructureDescriptionImpl(bool nullAccepted = false)
         : StructureDescription<Struct>(nullAccepted)
     {
         regme.done = true;
     }
-    
+
     static RegisterValueDescriptionI<Struct, Impl> regme;
 };
 
@@ -1114,7 +1114,7 @@ addParent(ValueDescriptionT<V> * description_)
         fd.fieldName = fieldName;
         fd.comment = ofd.comment;
         fd.description = std::move(ofd.description);
-        
+
         fd.offset = ofd.offset + ofs;
         fd.fieldNum = fields.size() - 1;
         orderedFields.push_back(it);
@@ -1157,7 +1157,7 @@ struct EnumDescription: public ValueDescriptionT<Enum> {
             context.writeInt((int)*val);
         else context.writeString(it->second);
     }
-    
+
     virtual bool isDefaultTyped(const Enum * val) const
     {
         if (!hasDefault)
@@ -1198,7 +1198,7 @@ struct EnumDescription: public ValueDescriptionT<Enum> {
 
     virtual const std::vector<std::string> getEnumKeys() const {
         std::vector<std::string> res;
-        for (const auto it: print) {
+        for (const auto& it: print) {
             res.push_back(it.second);
         }
         return res;
@@ -1236,14 +1236,14 @@ struct ListDescriptionBase {
 
         if (!context.isArray())
             context.exception("expected array of " + inner->typeName);
-        
+
         auto onElement = [&] ()
             {
                 T el;
                 inner->parseJsonTyped(&el, context);
                 val->emplace_back(std::move(el));
             };
-        
+
         context.forEachElement(onElement);
     }
 
@@ -1254,14 +1254,14 @@ struct ListDescriptionBase {
 
         if (!context.isArray())
             context.exception("expected array of " + inner->typeName);
-        
+
         auto onElement = [&] ()
             {
                 T el;
                 inner->parseJsonTyped(&el, context);
                 val->insert(std::move(el));
             };
-        
+
         context.forEachElement(onElement);
     }
 
@@ -1275,7 +1275,7 @@ struct ListDescriptionBase {
             context.newArrayElement();
             inner->printJsonTyped(&(*it), context);
         }
-        
+
         context.endArray();
     }
 };
@@ -1357,7 +1357,7 @@ struct DefaultDescription<std::vector<T> >
         std::vector<T> * val2 = reinterpret_cast<std::vector<T> *>(val);
         val2->resize(newLength);
     }
-    
+
     virtual const ValueDescription & contained() const
     {
         return *this->inner;
@@ -1443,7 +1443,7 @@ struct DefaultDescription<std::set<T> >
     {
         throw ML::Exception("cannot adjust length of a set");
     }
-    
+
     virtual const ValueDescription & contained() const
     {
         return *this->inner;
@@ -1566,12 +1566,12 @@ struct MapValueDescription
         throw ML::Exception("map forEachField: needs work");
     }
 
-    virtual const FieldDescription & 
+    virtual const FieldDescription &
     getField(const std::string & field) const
     {
         throw ML::Exception("map getField: needs work");
     }
-    
+
     virtual const ValueDescription & contained() const
     {
         return *this->inner;
@@ -1708,7 +1708,7 @@ struct DescriptionFromBase
     {
         inner->setArrayLength(fixPtr(val), newLength);
     }
-    
+
     virtual const ValueDescription & contained() const
     {
         return inner->contained();
@@ -1802,9 +1802,9 @@ T jsonDecodeFile(const std::string & filename, T * = 0,
                  typename std::enable_if<!hasFromJson<T>::value>::type * = 0)
 {
     T result;
-    
+
     ML::filter_istream stream(filename);
-    
+
     static auto desc = getDefaultDescriptionShared<T>();
     StreamingJsonParsingContext context(filename, stream);
     desc->parseJson(&result, context);
@@ -1850,7 +1850,7 @@ Json::Value jsonEncode(const T & obj,
     static auto desc = getDefaultDescriptionShared<T>();
     StructuredJsonPrintingContext context;
     desc->printJson(&obj, context);
-    return std::move(context.output);
+    return context.output;
 }
 
 // jsonEncode implementation for any type which:
@@ -1865,7 +1865,7 @@ std::string jsonEncodeStr(const T & obj,
     std::ostringstream stream;
     StreamJsonPrintingContext context(stream);
     desc->printJson(&obj, context);
-    return std::move(stream.str());
+    return stream.str();
 }
 
 // jsonEncode implementation for any type which:
@@ -1982,7 +1982,7 @@ inline Json::Value jsonEncode(const char * str)
     Name::Regme Name::regme;                                            \
 
 
-    
+
 #define CREATE_STRUCTURE_DESCRIPTION(Type)                      \
     CREATE_STRUCTURE_DESCRIPTION_NAMED(Type##Description, Type)
 
@@ -2036,7 +2036,7 @@ inline Json::Value jsonEncode(const char * str)
     getDefaultDescription(Type *)                               \
     {                                                           \
         return new Name();                                      \
-    }                                                          
+    }
 
 #define CREATE_ENUM_DESCRIPTION(Type)                      \
     CREATE_ENUM_DESCRIPTION_NAMED(Type##Description, Type)

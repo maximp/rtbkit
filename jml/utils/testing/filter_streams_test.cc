@@ -87,7 +87,7 @@ void compress_using_stream(const std::string & input_file,
     while (in) {
         in.read(buf, 16384);
         int n = in.gcount();
-        
+
         out.write(buf, n);
     }
 }
@@ -103,7 +103,7 @@ void decompress_using_stream(const std::string & input_file,
     while (in) {
         in.read(buf, 16384);
         int n = in.gcount();
-        
+
         out.write(buf, n);
     }
 }
@@ -145,12 +145,12 @@ void test_compress_decompress(const std::string & input_file,
     Call_Guard guard4(boost::bind(&::unlink, dec2.c_str()));
     decompress_using_stream(cmp2, dec2);
     assert_files_identical(input_file, dec2);
-    
+
     // Test 5: decompress stream file using stream
     Call_Guard guard5(boost::bind(&::unlink, dec3.c_str()));
     decompress_using_stream(cmp1, dec3);
     assert_files_identical(input_file, dec3);
-    
+
     // Test 6: decompress tool file using tool (sanity)
     Call_Guard guard6(boost::bind(&::unlink, dec4.c_str()));
     decompress_using_tool(cmp2, dec4, unzip_command);
@@ -271,11 +271,11 @@ BOOST_AUTO_TEST_CASE( test_large_blocks )
     for (unsigned i = 0;  i < blockSize;  ++i) {
         block[i] = i ^ (i << 8) ^ (i << 16) ^ (1 << 24);
     }
-    
+
     string filename = "build/x86_64/tmp/badfile.xz4";
 
     FileCleanup cleanup(filename);
-        
+
     {
         ML::filter_ostream stream(filename);
         stream.write(block, blockSize);
@@ -452,7 +452,7 @@ struct RegisterExcHandlers {
     static std::pair<std::streambuf *, bool>
     getExcOnReadHandler(const std::string & scheme,
                         const std::string & resource,
-                        std::ios_base::open_mode mode,
+                        std::ios_base::openmode mode,
                         const std::map<std::string, std::string> & options,
                         const OnUriHandlerException & onException)
     {
@@ -462,7 +462,7 @@ struct RegisterExcHandlers {
     static std::pair<std::streambuf *, bool>
     getExcOnWriteHandler(const std::string & scheme,
                          const std::string & resource,
-                         std::ios_base::open_mode mode,
+                         std::ios_base::openmode mode,
                          const std::map<std::string, std::string> & options,
                          const OnUriHandlerException & onException)
     {
@@ -472,7 +472,7 @@ struct RegisterExcHandlers {
     static std::pair<std::streambuf *, bool>
     getExcOnCloseHandler(const std::string & scheme,
                          const std::string & resource,
-                         std::ios_base::open_mode mode,
+                         std::ios_base::openmode mode,
                          const std::map<std::string, std::string> & options,
                          const OnUriHandlerException & onException)
     {

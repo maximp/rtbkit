@@ -87,7 +87,7 @@ struct RestServiceEndpoint: public MessageLoop {
         ConnectionId()
         {
         }
-        
+
         /// Initialize for zeromq
         ConnectionId(const std::string & zmqAddress,
                      const std::string & requestId,
@@ -134,8 +134,8 @@ struct RestServiceEndpoint: public MessageLoop {
 
             ~Itl()
             {
-                if (!responseSent)
-                    throw ML::Exception("no response sent on connection");
+//                if (!responseSent)
+//                    throw ML::Exception("no response sent on connection");
             }
 
             std::string zmqAddress;
@@ -293,7 +293,7 @@ struct RestServiceEndpoint: public MessageLoop {
 
         handleRequest(connection, request);
     }
-    
+
     // Create a random request ID for an HTTP request
     std::string getHttpRequestId() const;
 

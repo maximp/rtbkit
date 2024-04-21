@@ -134,7 +134,7 @@ struct JML_PACKED Header
         if (head.checkBits != head.checksumOptions())
             throw lz4_error("corrupted options");
 
-        return std::move(head);
+        return head;
     }
 
     template<typename Sink>
@@ -227,7 +227,7 @@ private:
         ExcAssert(bytesToAlloc);
         char* compressed = new char[bytesToAlloc];
         ML::Call_Guard guard([&] () { delete[] compressed; });
-        
+
         auto compressedSize = compressFn(buffer.data(), compressed, pos);
 
         auto writeChecksum = [&](const char* data, size_t n) {

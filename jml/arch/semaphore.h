@@ -75,8 +75,9 @@ struct Semaphore {
 
     ~Semaphore()
     {
-        if (sem_destroy(&val))
-            throw ML::Exception(errno, "sem_destroy");
+        sem_destroy(&val);
+        //if (sem_destroy(&val))
+        //    throw ML::Exception(errno, "sem_destroy");
     }
 
     void acquire()

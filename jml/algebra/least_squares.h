@@ -98,7 +98,7 @@ least_squares(const boost::multi_array<Float, 2> & A,
     \f[
         A\mathbf{x} = \mathbf{b}
     \f]
- 
+
     for the parameter <bf>x</bf>.
 
     \param    A the coefficient matrix
@@ -128,7 +128,7 @@ least_squares(const boost::multi_array<Float, 2> & A, const distribution<Float> 
     }
 
     using namespace LAPack;
-    
+
     int m = A.shape()[0];
     int n = A.shape()[1];
 
@@ -159,7 +159,7 @@ least_squares(const boost::multi_array<Float, 2> & A, const distribution<Float> 
     if (res > 0) {
         //if (debug_irls)
         //      (*debug_irls) << "retrying; " << res << " are too small" << endl;
-    
+
         /* Rank-deficient matrix.  Use the more efficient routine. */
         int rank;
         Float rcond = -1.0;
@@ -187,10 +187,10 @@ least_squares(const boost::multi_array<Float, 2> & A, const distribution<Float> 
     }
 
     x.resize(n);
- 
+
     //using namespace std;
     //cerr << "least_squares: took " << t.elapsed() << "s" << endl;
-    
+
     return x;
     //cerr << "least squares: gels returned " << x2 << endl;
     //cerr << "least squares: A2 = " << endl << A2 << endl;
@@ -198,7 +198,7 @@ least_squares(const boost::multi_array<Float, 2> & A, const distribution<Float> 
     //cerr << "least_squares: " << t.elapsed() << "s" << endl;
     //distribution<Float> x3
     //    = least_squares(A, b, boost::multi_array<Float, 2>(0, n), distribution<Float>());
-    
+
     //cerr << "least squares: gglse returned " << x3 << endl;
 
 }
@@ -209,7 +209,7 @@ distribution<Float>
 least_squares_rd(const boost::multi_array<Float, 2> & A, const distribution<Float> & b)
 {
     using namespace LAPack;
-    
+
     int m = A.shape()[0];
     int n = A.shape()[1];
 
@@ -228,7 +228,7 @@ least_squares_rd(const boost::multi_array<Float, 2> & A, const distribution<Floa
     if (res != 0)
         throw Exception(format("least_squares(): gglse returned error in arg "
                                "%d", res));
-    
+
     x.resize(n);
     return x;
 }
@@ -261,7 +261,7 @@ diag_mult(const boost::multi_array<Float, 2> & U,
     if (parallel)
         run_in_parallel_blocked(0, n, doColumn);
     else for (unsigned j = 0;  j < n;  ++j) doColumn(j);
-    
+
     return result;
 }
 
@@ -272,7 +272,7 @@ diag_mult(const boost::multi_array<Float, 2> & U,
     \f[
         A\mathbf{x} = \mathbf{b}
     \f]
- 
+
     for the parameter <bf>x</bf>.
 
     \param    A the coefficient matrix
@@ -313,7 +313,7 @@ ridge_regression(const boost::multi_array<Float, 2> & A,
         throw Exception("incompatible dimensions for least_squares");
 
     using namespace LAPack;
-    
+
     int m = A.shape()[0];
     int n = A.shape()[1];
 
@@ -324,10 +324,10 @@ ridge_regression(const boost::multi_array<Float, 2> & A,
     // The matrix to decompose is square
     boost::multi_array<Float, 2> GK(boost::extents[minmn][minmn]);
 
-    
+
     //cerr << "m = " << m << " n = " << n << endl;
 
-    
+
     // Take either A * transpose(A) or (A transpose) * A, whichever is smaller
     if (m < n) {
         for (unsigned i1 = 0;  i1 < m;  ++i1)
@@ -365,7 +365,7 @@ ridge_regression(const boost::multi_array<Float, 2> & A,
     distribution<Float> svalues(minmn);
     boost::multi_array<Float, 2> VT(boost::extents[minmn][minmn]);
     boost::multi_array<Float, 2> U(boost::extents[minmn][minmn]);
-    
+
     // SVD
     int result = LAPack::gesdd("S", minmn, minmn,
                                GK.data(), minmn,
@@ -402,8 +402,8 @@ ridge_regression(const boost::multi_array<Float, 2> & A,
     double current_lambda = 10.0;
 
     struct Iteration {
-        double lambda;
-        double total_mse_unbiased;
+        double lambda = 0.0L;
+        double total_mse_unbiased = 0.0L;
         distribution<Float> x;
     };
 
@@ -418,9 +418,9 @@ ridge_regression(const boost::multi_array<Float, 2> & A,
     auto doIter = [&] (int i)
         {
             double current_lambda = iterations[i].lambda;
-            
+
             Timer t(debug);
-        
+
             auto doneStep = [&] (const std::string & where)
             {
                 if (!debug)
@@ -444,7 +444,7 @@ ridge_regression(const boost::multi_array<Float, 2> & A,
 
             // TODO: reduce GK by removing those basis vectors where the singular
             // values are too close to lambda
-        
+
             if (debug && false) {
                 cerr << "GK_pinv = " << endl << GK_pinv
                      << endl;
@@ -463,7 +463,7 @@ ridge_regression(const boost::multi_array<Float, 2> & A,
                 cerr << "A_pinv = " << endl << A_pinv << endl;
 
             x = b * A_pinv;
-        
+
             if (debug)
                 cerr << "x = " << x << endl;
 
@@ -509,7 +509,7 @@ ridge_regression(const boost::multi_array<Float, 2> & A,
                 double resid = b[j] - predictions[j];
 
                 // Adjust for the bias cause by training on this example.  This is
-                // A * pinv(A), which is A * 
+                // A * pinv(A), which is A *
 
                 double factor = 1.0 - A_A_pinv_diag[j];
 
@@ -529,7 +529,7 @@ ridge_regression(const boost::multi_array<Float, 2> & A,
             //if (sqrt(total_mse_biased) > 1.0) {
             //    cerr << "rmse_biased: x = " << x << endl;
             //}
-        
+
 #if 0
             cerr << "m = " << m << endl;
             cerr << "total_mse_biased   = " << total_mse_biased << endl;
@@ -583,7 +583,7 @@ ridge_regression(const boost::multi_array<Float, 2> & A,
               d_0  &    0   & \cdots &    0   \\
                0   &   d_1  & \cdots &    0   \\
             \vdots & \vdots & \ddots & \vdots \\
-               0   &    0   &    0   &   d_n 
+               0   &    0   &    0   &   d_n
             \end{array}
             \right]
     \f]
@@ -614,7 +614,7 @@ diag_mult(const boost::multi_array<Float, 2> & XT,
 
             for (unsigned i = 0;  i < nv;  ++i) {
                 SIMD::vec_prod(&XT[i][x], &d[x], &Xid[0], nxc);
-            
+
                 for (unsigned j = 0;  j < nv;  ++j) {
                     result[i][j] += SIMD::vec_dotprod_dp(&XT[j][x], &Xid[0], nxc);
                     //result[i][j] += SIMD::vec_accum_prod3(&XT[i][x], &XT[j][x],
@@ -636,7 +636,7 @@ diag_mult(const boost::multi_array<Float, 2> & XT,
                     int nxc = std::min<size_t>(chunk_size, nx - x);
                     distribution<Float> Xid(chunk_size);
                     SIMD::vec_prod(&XT[i][x], &d[x], &Xid[0], nxc);
-            
+
                     for (unsigned j = 0;  j < nv;  ++j) {
                         result[i][j] += SIMD::vec_dotprod_dp(&XT[j][x], &Xid[0], nxc);
                     }
@@ -644,7 +644,7 @@ diag_mult(const boost::multi_array<Float, 2> & XT,
                     x += nxc;
                 }
             };
-        
+
         run_in_parallel_blocked(0, nv, doRow);
     }
 
@@ -664,7 +664,7 @@ diag_mult(const boost::multi_array<Float, 2> & XT,
               d_0  &    0   & \cdots &    0   \\
                0   &   d_1  & \cdots &    0   \\
             \vdots & \vdots & \ddots & \vdots \\
-               0   &    0   &    0   &   d_n 
+               0   &    0   &    0   &   d_n
             \end{array}
             \right]
     \f]
@@ -692,7 +692,7 @@ diag_mult(const boost::multi_array<Float, 2> & X,
     (given by the link parameter) of a linear combination of features to be
     fitted in a least-squares fashion.  The dist parameter gives the
     distribution of the errors.
-    
+
     \param y      the values to fit (target values)
     \param x      the matrix of values to fit with.  It should be nv x nx,
                   where nv is the number of variables to fit (and will be
@@ -728,7 +728,7 @@ irls(const distribution<Float> & y, const boost::multi_array<Float, 2> & x,
 
     static const int max_iter = 20;           // from GLMlab
     static const float tolerence = 5e-5;      // from GLMlab
-    
+
     size_t nv = x.shape()[0];                     // number of variables
     size_t nx = x.shape()[1];                     // number of examples
 
@@ -750,7 +750,7 @@ irls(const distribution<Float> & y, const boost::multi_array<Float, 2> & x,
             throw Exception(format("mu[%d] = %f", i, mu[i]));
 
     Timer t(debug);
-    
+
     auto doneStep = [&] (const std::string & step)
         {
             if (!debug)
@@ -799,9 +799,9 @@ irls(const distribution<Float> & y, const boost::multi_array<Float, 2> & x,
 
         //if (debug_irls)
         //    (*debug_irls) << "fit_weights: " << fit_weights << endl;
-        
+
         doneStep("fit_weights");
-        
+
         //cerr << "fit_weights = " << fit_weights << endl;
 
         /* Set up the reweighted least squares problem. */
@@ -877,5 +877,3 @@ irls(const distribution<Float> & y, const boost::multi_array<Float, 2> & x,
 } // namespace ML
 
 #endif /* __algebra__least_squares_h__ */
-
-

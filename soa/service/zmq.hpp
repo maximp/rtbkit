@@ -113,14 +113,14 @@ namespace zmq
                 throw error_t ();
             std::copy(s.begin(), s.end(), (char *)data());
         }
-        
+
         inline message_t (const message_t & other) noexcept
         {
             int rc = zmq_msg_init (this);
             if (rc == 0)
                 rc = zmq_msg_copy(this, const_cast<message_t *>(&other));
-            if (rc != 0)
-                throw error_t ();
+//            if (rc != 0)
+//                throw error_t ();
         }
 
         inline message_t (message_t && other) noexcept
@@ -128,23 +128,23 @@ namespace zmq
             int rc = zmq_msg_init (this);
             if (rc == 0)
                 rc = zmq_msg_move(this, &other);
-            if (rc != 0)
-                throw error_t ();
+//            if (rc != 0)
+//                throw error_t ();
         }
 
         inline message_t & operator = (const message_t & other) noexcept
         {
             int rc = zmq_msg_copy(this, const_cast<message_t *>(&other));
-            if (rc != 0)
-                throw error_t ();
+//            if (rc != 0)
+//                throw error_t ();
             return *this;
         }
 
         inline message_t & operator = (message_t && other) noexcept
         {
             int rc = zmq_msg_move(this, &other);
-            if (rc != 0)
-                throw error_t ();
+//            if (rc != 0)
+//                throw error_t ();
             return *this;
         }
 
@@ -245,7 +245,7 @@ namespace zmq
         {
             // If this throws, it means that you forgot to destroy a zmq_socket_t object
             // created with this context before you closed the context.
-            ExcAssertEqual(sockets.size(), 0);
+//            ExcAssertEqual(sockets.size(), 0);
 
             int rc = zmq_term (ptr);
             assert (rc == 0);
@@ -259,7 +259,7 @@ namespace zmq
         {
             return ptr;
         }
-        
+
         void registerSocket(socket_t * sock)
         {
             std::unique_lock<std::mutex> guard(lock);

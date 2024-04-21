@@ -145,7 +145,7 @@ explain(int nfeatures, const Feature_Set & fset, int) const
 
     std::sort(ranked.begin(), ranked.end(),
               Sort_On_Abs_Second());
-    
+
     std::string result;
     if (bias != 0.0)
         result += format("%12.6f                      BIAS\n",
@@ -162,7 +162,7 @@ explain(int nfeatures, const Feature_Set & fset, int) const
     double total = bias;
     for (unsigned i = 0;  i < ranked.size();  ++i)
         total += ranked[i].second;
-    
+
 
     result += format("%12.6f                      TOTAL\n",
                      total);
@@ -180,7 +180,7 @@ explain(int nfeatures) const
 
     std::sort(ranked.begin(), ranked.end(),
               Sort_On_Abs_Second());
-    
+
     std::string result;
     if (bias != 0.0)
         result += format("%12.6f BIAS\n",
@@ -196,11 +196,11 @@ explain(int nfeatures) const
     double total = bias;
     for (unsigned i = 0;  i < ranked.size();  ++i)
         total += ranked[i].second;
-    
+
 
     result += format("%12.6f TOTAL\n",
                      total);
-    
+
     return result;
 }
 
@@ -214,13 +214,13 @@ explainRaw(int nfeatures, bool includeBias) const
 
     std::sort(ranked.begin(), ranked.end(),
               Sort_On_Abs_Second());
-    
+
     if (nfeatures != -1 && ranked.size() > nfeatures)
         ranked.erase(ranked.begin() + nfeatures, ranked.end());
-    
+
     if (bias != 0.0 && includeBias)
         ranked.insert(ranked.begin(), make_pair(MISSING_FEATURE, bias));
-    
+
     return ranked;
 }
 
@@ -268,9 +268,9 @@ size_t check_label_count(const Feature_Space & fs,
     /* For reals, we assume the number of labels are known. */
     if (info.type() != REAL
         && info.value_count() != label_count) {
-        
 
-        throw Exception("Classifier_Impl: check_label_count(): feature (" 
+
+        throw Exception("Classifier_Impl: check_label_count(): feature ("
                         + ostream_format(info.value_count())
                         + ") and label ("
                         + ostream_format(label_count)
@@ -385,7 +385,7 @@ optimize(const std::vector<Feature> & features)
 
         std::sort(sorted1.begin(), sorted1.end());
         std::sort(sorted2.begin(), sorted2.end());
-        
+
         vector<Feature> missing;
         std::set_difference(sorted1.begin(), sorted1.end(),
                             sorted2.begin(), sorted2.end(),
@@ -558,11 +558,11 @@ optimized_predict_impl(const float * features,
 {
     // If the classifier implemented optimized predict, then this would have
     // been overridden.
-    
+
     // Convert to standard feature set, then call classical predict
     Dense_Feature_Set fset(make_unowned_sp(info.to_features),
                            features);
-    
+
     return predict(fset, context);
 }
 
@@ -589,7 +589,7 @@ optimized_predict_impl(int label,
 {
     // If the classifier implemented optimized predict, then this would have
     // been overridden.
-    
+
     // Convert to standard feature set, then call classical predict
     Dense_Feature_Set fset(make_unowned_sp(info.to_features),
                            features);
@@ -636,9 +636,9 @@ struct Accuracy_Job_Info {
             if (w == 0.0) continue;
 
             //cerr << "x = " << x << " w = " << w << endl;
-            
+
             distribution<float> result = classifier.predict(data[x], opt_info);
-            
+
             if (regression_problem) {
                 float correct = data[x][classifier.predicted()];
                 double error = 1.0 - correct;
@@ -670,7 +670,7 @@ struct Accuracy_Job {
 
     Accuracy_Job_Info & info;
     int x_start, x_end;
-    
+
     void operator () () const
     {
         info.calc(x_start, x_end);
@@ -703,7 +703,7 @@ accuracy(const Training_Data & data,
     Accuracy_Job_Info info(data, example_weights, *this, opt_info,
                            correct, total, rmse_accum);
     static Worker_Task & worker = Worker_Task::instance(num_threads() - 1);
-    
+
     int group;
     {
         int parent = -1;  // no parent group
@@ -713,7 +713,7 @@ accuracy(const Training_Data & data,
         Call_Guard guard(boost::bind(&Worker_Task::unlock_group,
                                      boost::ref(worker),
                                      group));
-        
+
         /* Do 1024 examples per job. */
         for (unsigned x = 0;  x < data.example_count();  x += 1024)
             worker.add(Accuracy_Job(info, x, std::min(x + 1024, nx)),
@@ -723,7 +723,7 @@ accuracy(const Training_Data & data,
     }
 
     worker.run_until_finished(group);
-    
+
     return make_pair(correct / total, sqrt(rmse_accum / total));
 }
 
@@ -744,7 +744,7 @@ struct Predict_Job {
           classifier(classifier), opt_info(opt_info),
           data(data)
     {
-        
+
     }
 
     typedef void result_type;
@@ -784,7 +784,7 @@ predict(const Training_Data & data,
     unsigned nx = data.example_count();
 
     static Worker_Task & worker = Worker_Task::instance(num_threads() - 1);
-    
+
     int group;
     {
         int parent = -1;  // no parent group
@@ -794,7 +794,7 @@ predict(const Training_Data & data,
         Call_Guard guard(boost::bind(&Worker_Task::unlock_group,
                                      boost::ref(worker),
                                      group));
-        
+
         /* Do 1024 examples per job. */
         for (unsigned x = 0;  x < data.example_count();  x += 1024)
             worker.add(boost::bind(Predict_Job(x,
@@ -820,7 +820,7 @@ predict(const Training_Data & data,
     unsigned nx = data.example_count();
 
     static Worker_Task & worker = Worker_Task::instance(num_threads() - 1);
-    
+
     int group;
     {
         int parent = -1;  // no parent group
@@ -830,7 +830,7 @@ predict(const Training_Data & data,
         Call_Guard guard(boost::bind(&Worker_Task::unlock_group,
                                      boost::ref(worker),
                                      group));
-        
+
         /* Do 1024 examples per job. */
         for (unsigned x = 0;  x < data.example_count();  x += 1024)
             worker.add(boost::bind(Predict_Job(x,
@@ -871,7 +871,7 @@ poly_reconstitute(DB::Store_Reader & store,
         store >> fs2;  // ignore this one
         return Registry<Classifier_Impl>::singleton().reconstitute(store, fs);
     }
-    else 
+    else
         return Registry<Classifier_Impl>::singleton().reconstitute(store, fs);
 }
 
@@ -966,11 +966,12 @@ FS_Context(const std::shared_ptr<const Feature_Space> & feature_space)
 
 FS_Context::~FS_Context()
 {
-    if (!fs_stack.get())
-        throw Exception("FS_Context never initialized");
-    if (fs_stack->empty())
-        throw Exception("FS stack was empty in destructor; bad problem");
-    fs_stack->pop_back();
+//    if (!fs_stack.get())
+//        throw Exception("FS_Context never initialized");
+//    if (fs_stack->empty())
+//        throw Exception("FS stack was empty in destructor; bad problem");
+    if (fs_stack.get() && !fs_stack->empty())
+        fs_stack->pop_back();
 }
 
 const std::shared_ptr<const Feature_Space> & FS_Context::inner()
@@ -1095,5 +1096,3 @@ Factory_Base<Classifier_Impl>::~Factory_Base()
 }
 
 } // namespace ML
-
-

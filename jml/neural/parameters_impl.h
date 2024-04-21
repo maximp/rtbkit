@@ -10,6 +10,7 @@
 
 #include "parameters.h"
 #include "layer.h"
+#include <cmath>
 
 namespace ML {
 
@@ -30,7 +31,7 @@ bool need_update(const F * vals, size_t size)
     return result;
 #else // check for NaN until we find a single non-zero value
     for (unsigned i = 0;  i < size;  ++i) {
-        if (isnan(vals[i]))
+        if (std::isnan(vals[i]))
             throw Exception("updating with range containing NaN");
         if (vals[i] != 0.0) return true;
     }
@@ -125,11 +126,11 @@ struct Vector_RefT : public Vector_Parameter {
                 return;
             }
         }
-    
+
         // Otherwise, do it via a copy through a known type (here, double)
         double tmp[size_];
         vp.copy_to(tmp, tmp + size_);
-        
+
         if (need_update(tmp, size_))
             SIMD::vec_add(array_, learning_rate, tmp, array_, size_);
     }
@@ -149,7 +150,7 @@ struct Vector_RefT : public Vector_Parameter {
 
         double tmp1[size_];
         v_other.copy_to(tmp1, tmp1 + size_);
-        
+
         double tmp2[size_];
         v_learning_rate.copy_to(tmp2, tmp2 + size_);
 
@@ -204,11 +205,11 @@ struct Vector_RefT : public Vector_Parameter {
                 return;
             }
         }
-    
+
         // Otherwise, do it via a copy through a known type (here, double)
         double tmp[size_];
         vp.copy_to(tmp, tmp + size_);
-        
+
         if (need_update(tmp, size_))
             SIMD::vec_add_sqr(array_, learning_rate, tmp, array_, size_);
     }
@@ -291,7 +292,7 @@ struct Vector_RefT : public Vector_Parameter {
         return format("%s (vector) element %d",
                       name().c_str(), index);
     }
-    
+
 protected:
     Underlying * array_;
     size_t size_;
@@ -399,11 +400,11 @@ struct Matrix_RefT : public Matrix_Parameter {
                 return;
             }
         }
-    
+
         // Otherwise, do it via a copy through a known type (here, double)
         double tmp[n];
         mp.copy_to(tmp, tmp + n);
-        
+
         if (need_update(tmp, n))
             SIMD::vec_add(array_, learning_rate, tmp, array_, n);
     }
@@ -426,7 +427,7 @@ struct Matrix_RefT : public Matrix_Parameter {
 
         double tmp1[n];
         m_other.copy_to(tmp1, tmp1 + n);
-        
+
         double tmp2[n];
         m_learning_rate.copy_to(tmp2, tmp2 + n);
 
@@ -480,11 +481,11 @@ struct Matrix_RefT : public Matrix_Parameter {
                 return;
             }
         }
-    
+
         // Otherwise, do it via a copy through a known type (here, double)
         double tmp[n];
         mp.copy_to(tmp, tmp + n);
-        
+
         if (need_update(tmp, n))
             SIMD::vec_add_sqr(array_, learning_rate, tmp, array_, n);
     }
@@ -529,7 +530,7 @@ struct Matrix_RefT : public Matrix_Parameter {
             SIMD::vec_add(array_ + (size2_ * row), k, x,
                           array_ + (size2_ * row), size2_);
     }
-    
+
     virtual void update_row_sqr(int row, const float * x, float k = 1.0)
     {
         if (row < 0 || row >= size1_)
@@ -547,7 +548,7 @@ struct Matrix_RefT : public Matrix_Parameter {
             SIMD::vec_add_sqr(array_ + (size2_ * row), k, x,
                               array_ + (size2_ * row), size2_);
     }
-    
+
     virtual Matrix_RefT * make_copy() const
     {
         return new Matrix_RefT(*this);
@@ -585,7 +586,7 @@ add(int index,
     return add(index,
                new Vector_RefT<Float>(name, &values[0], values.size()));
 }
-    
+
 template<class Float>
 Parameters &
 Parameters::

@@ -186,7 +186,7 @@ create_mapping(const Dense_Feature_Space & other,
                 //cerr << "mapping between "
                 //     << demangle(typeid(ci).name())
                 //     << " and "
-                //    
+                //
                 //     << demangle(typeid(*other.info_array[it->second]
                 //                        .categorical()).name())
                 //     << endl;
@@ -246,7 +246,7 @@ encode(const std::vector<float> & variables,
 
     return encode(variables, other, (const Mapping &)mapping);
 }
-    
+
 std::shared_ptr<Mutable_Feature_Set>
 Dense_Feature_Space::
 encode(const std::vector<float> & variables,
@@ -266,7 +266,7 @@ encode(const std::vector<float> & variables,
         throw Exception("wrong number of variables expected; have you reversed "
                         "feature spaces?");
     }
-    
+
     /* Map their variables into ours.  Those that have no corresponding
        variable get a NaN instead. */
     distribution<float> our_variables(names_fwd.size(), NAN);
@@ -283,7 +283,7 @@ encode(const std::vector<float> & variables,
             else our_variables[i] = variables[mapping.vars[i]];
         }
     }
-    
+
     //cerr << "encode: with map done" << endl;
     /* Now we have variables in our usual space, we can call the usual
        encoding procedure. */
@@ -329,7 +329,7 @@ decode(const Feature_Set & feature_set) const
     if (feature_set.size() != variable_count())
         throw Exception("Dense_Feature_Space::encode(): variable counts don't "
                         "match.");
-    
+
     distribution<float> result(variable_count());
 
     for (unsigned i = 0;  i < feature_set.size();  ++i)
@@ -342,7 +342,7 @@ Feature_Info
 Dense_Feature_Space::info(const ML::Feature & feature) const
 {
     if (feature == MISSING_FEATURE) return MISSING_FEATURE_INFO;
-    
+
     if (feature.type() < 0 || feature.type() >= variable_count())
         throw Exception
             (format("unknown variable number %zd in Dense_Feature_Type::info "
@@ -390,7 +390,7 @@ print(const Feature & feature, float value) const
 {
     if (feature.type() < 0 || feature.type() >= variable_count())
         throw Exception("Dense_Feature_Space::print(): error: bad feature");
-    
+
     if (info_array[feature.type()].categorical()) {
         if (!finite(value)) return ostream_format(value);
 
@@ -510,10 +510,10 @@ reconstitute(DB::Store_Reader & store, std::shared_ptr<Feature_Set> & fs) const
     switch (version) {
     case 1: {
         Feature_Space::reconstitute(store, fs);
-        
+
         break;
     }
-        
+
     default:
         throw Exception(format("Dense_Feature_Space::reconstitute(Feature_Set): "
                                "attempt to reconstitute feature set of "
@@ -539,7 +539,7 @@ std::string Dense_Feature_Space::print() const
 
     //cerr << "Dense_Feature_Space::print(): result = '" << result << "'"
     //     << endl;
-    
+
     return result;
 }
 
@@ -590,7 +590,7 @@ int Dense_Feature_Space::
 add_feature(const string & name, const Feature_Info & info)
 {
     int index = feature_index(name);
-    
+
     if (index == -1) {
         /* Doesn't exist.  We add it. */
         index = variable_count();
@@ -606,7 +606,7 @@ add_feature(const string & name, const Feature_Info & info)
         cerr << "warning: adding feature " << name
              << " to dense feature face that already contains it; "
              << "they are being mapped onto the same feature" << endl;
-            
+
 #if 0
         /* Already exists.  Check that the info is compatible. */
         if (info_array[index] != info)
@@ -802,10 +802,11 @@ get_sizes(Parse_Context & context,
         context.skip_line();
         ++row_count;
     }
-    
+
     return boost::make_tuple(row_count, var_count, header);
 }
 
+/* UNUSED
 boost::tuple<size_t, size_t, string>
 get_sizes(const std::string & filename,
           vector<unsigned> & row_start_ofs)
@@ -814,6 +815,7 @@ get_sizes(const std::string & filename,
 
     return get_sizes(context, row_start_ofs);
 }
+*/
 
 } // file scope
 
@@ -823,7 +825,7 @@ add_data()
     /* Go through the dataset and turn each row into an example. */
     Training_Data::clear();
     Training_Data::init(feature_space());
-    
+
     int nv = dataset.shape()[1];
     int nx = dataset.shape()[0];
 
@@ -832,7 +834,7 @@ add_data()
         feature_vec(new vector<Feature>(nv));
     for (unsigned j = 0;  j < nv;  ++j)
         (*feature_vec)[j] = Feature(j);
-    
+
     /* Add data */
     for (unsigned x = 0;  x < nx;  ++x) {
         std::shared_ptr<Dense_Feature_Set> features
@@ -964,7 +966,7 @@ init(const std::vector<Data_Source> & data_sources,
             header = my_header;
         else if (my_header != header)
             throw Exception("headers don't match");
-        
+
         row_counts[i] = my_row_count;
         row_count += my_row_count;
     }
@@ -973,7 +975,7 @@ init(const std::vector<Data_Source> & data_sources,
 
     /* Whether or not each feature_info is immutable. */
     vector<bool> immutable_features;
-    
+
     //cerr << "feature space is " << feature_space->print() << endl;
     //cerr << "header is " << header << endl;
 
@@ -1025,7 +1027,7 @@ init(const std::vector<Data_Source> & data_sources,
 
     //cerr << "done feature space init" << endl;
     //cerr << "feature space is " << feature_space->print() << endl;
-    
+
     /* Allocate our array. */
     dataset.resize(boost::extents[row_count][var_count]);
     row_comments.resize(row_count);
@@ -1045,7 +1047,7 @@ init(const std::vector<Data_Source> & data_sources,
     /* Find if any are already known to be categorical. */
     vector<std::shared_ptr<Mutable_Categorical_Info> >
         categorical(var_count);
-    
+
     for (unsigned v = 0;  v < var_count;  ++v)
         categorical[v] = feature_space->info_array[v].mutable_categorical();
 
@@ -1055,44 +1057,44 @@ init(const std::vector<Data_Source> & data_sources,
     bool guessed_wrong = false;
 
     boost::timer timer;
-    
+
     /* Keep on going until we get all the categorical values correct. */
     do {
         //cerr << "trying to read..." << endl;
         for (unsigned i = first_nonempty;  i < data_sources.size();  ++i) {
 
             Parse_Context context = data_sources[i].get_context();
-            
+
             /* Skip over the header */
             context.skip_line();
-            
+
             /* Now fill it in value by value. */
             int row = 0;
             while (row < row_counts[i]) {
                 //cerr << "row " << row << " of " << row_counts[i] << endl;
 
                 //__builtin_prefetch(context.get_pos() + 256, 0, 0);
-                
+
                 context.skip_whitespace();
                 if (context.match_literal('#')) {
                     context.skip_line();
                     continue;
                 }
-                
+
                 if (context.match_eol()) continue;
 
                 row_offsets[row] = context.get_offset();
-                
+
                 //cerr << "row " << row << endl;
 
                 for (unsigned v = 0;  v < var_count;  ++v) {
-                    
+
                     //cerr << "v = " << v << endl;
                     //cerr << "info = " << feature_space->info_array[v] << endl;
                     //cerr << "categorical = " << categorical[v] << endl;
 
                     __builtin_prefetch(&dataset[row][v] + 64, 1, 0);
-                    
+
                     if (!categorical[v] && !immutable_features[v]) {
                         if (match_float(dataset[row][v], context)) ;
                         else {
@@ -1106,7 +1108,7 @@ init(const std::vector<Data_Source> & data_sources,
                         /* immutable; float must parse */
                         dataset[row][v] = expect_float<float>(context);
                     }
-                    
+
                     if (categorical[v]) {
                         string category = context.expect_text(" \n");
 
@@ -1118,13 +1120,13 @@ init(const std::vector<Data_Source> & data_sources,
                         float value;
                         if (immutable_features[v]
                             && feature_space->info_array[v].type()
-                               != STRING) 
+                               != STRING)
                             value = categorical[v]->parse(category);
                         else value = categorical[v]->parse_or_add(category);
-                        
+
                         dataset[row][v] = value;
                     }
-                    
+
                     context.skip_whitespace();
                 }
                 if (context.match_literal('#')) {
@@ -1135,7 +1137,7 @@ init(const std::vector<Data_Source> & data_sources,
                     context.expect_eol("too many values in line (expected EOL)");
                 ++row;
             }
-            
+
             while (context) {
                 context.skip_whitespace();
                 if (context.match_literal('#')) {
@@ -1143,17 +1145,17 @@ init(const std::vector<Data_Source> & data_sources,
                     context.skip_line();
                 continue;
                 }
-                
+
                 if (context.match_eol()) {
                     continue;
                 }
 
                 //cerr << "row = " << row << " row_count = " << row_count
                 //     << endl;
-                
+
                 context.exception("extra junk after end of file");
             }
-        
+
             context.expect_eof();
         }
 
@@ -1241,4 +1243,3 @@ DFS_REG("DENSE_FEATURE_SPACE");
 
 
 } // namespace ML
-

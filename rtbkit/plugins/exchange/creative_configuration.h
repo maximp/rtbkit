@@ -260,7 +260,7 @@ TypedCreativeConfiguration<CreativeData>::extractVariables(
         variables.emplace_back(variable, index, indexEnd);
     }
 
-    return std::move(variables);
+    return variables;
 }
 
 template <typename CreativeData>

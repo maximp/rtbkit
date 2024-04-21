@@ -1,5 +1,7 @@
 # exchange_testing.mk
 
+#SHELL = sh -x
+
 #$(eval $(call test,rubicon_exchange_connector_test,rubicon_exchange bid_test_utils openrtb_exchange bidding_agent rtb_router cairomm-1.0 cairo sigc-2.0,boost))
 $(eval $(call test,mopub_exchange_connector_test,mopub_exchange bid_test_utils openrtb_exchange bidding_agent rtb_router sigc-2.0,boost manual))
 $(eval $(call test,smaato_exchange_connector_test,smaato_exchange bid_test_utils openrtb_exchange bidding_agent rtb_router sigc-2.0,boost))
@@ -8,7 +10,9 @@ $(eval $(call test,bidswitch_exchange_connector_test,bidswitch_exchange bid_test
 $(eval $(call test,bidswitch_exchange_connector_adx_test,bidswitch_exchange bid_test_utils bidding_agent rtb_router agents_bidder,boost))
 $(eval $(call test,bidswitch_filters_test,static_filters bidswitch_exchange,boost))
 $(eval $(call test,nexage_exchange_connector_test,nexage_exchange bid_test_utils bidding_agent rtb_router agents_bidder,boost))
-$(eval $(call test,adx_exchange_connector_test,adx_exchange bid_test_utils bidding_agent rtb_router agents_bidder,boost))
+$(eval $(call test,adx_exchange_connector_test,adx_exchange bid_test_utils bidding_agent rtb_router agents_bidder \
+	absl_cord absl_log_internal_message absl_statusor absl_raw_hash_set absl_log_internal_check_op absl_log_internal_conditions \
+	utf8_validity, boost))
 $(eval $(call test,openrtb_exchange_connector_test,openrtb_exchange bid_test_utils bidding_agent rtb_router agents_bidder,boost))
 $(eval $(call test,rtbkit_exchange_connector_test,rtbkit_exchange bid_test_utils bidding_agent rtb_router agents_bidder,boost))
 $(eval $(call test,casale_exchange_connector_test,casale_exchange bid_test_utils bidding_agent rtb_router agents_bidder,boost))

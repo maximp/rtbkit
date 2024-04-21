@@ -9,13 +9,14 @@
 #ifndef __boosting__memusage_h__
 #define __boosting__memusage_h__
 
+#include <string>
 
 namespace std {
 
 template<class Key, class Data, class Compare, class Alloc> class map;
 template<class First, class Second> class pair;
 template<class T, class Alloc> class vector;
-template<class Char, class Traits, class Alloc> class basic_string;
+//template<class Char, class Traits, class Alloc> class basic_string;
 
 };
 
@@ -91,10 +92,10 @@ template<class Key, class Data, class Compare, class Alloc>
 size_t memusage(const std::map<Key, Data, Compare, Alloc> & m)
 {
     typedef std::map<Key, Data, Compare, Alloc> array_type;
-    
+
     size_t nodes = m.size();
     size_t node_size = 3 * sizeof(void *) + sizeof(int);
-    
+
     size_t result = sizeof(array_type) + nodes * node_size;
     result += memusage_range(m.begin(), m.end());
     return result;
@@ -104,10 +105,10 @@ template<class Key, class Data, class Hash, class Equal, class Alloc>
 size_t memusage(const __gnu_cxx::hash_map<Key, Data, Hash, Equal, Alloc> & m)
 {
     typedef __gnu_cxx::hash_map<Key, Data, Hash, Equal, Alloc> array_type;
-    
+
     size_t num_nodes = m.size();
     size_t num_buckets = m.bucket_count();
-    
+
     size_t result = sizeof(array_type)
         + num_nodes * (sizeof(void *))
         + num_buckets * (sizeof(void *));

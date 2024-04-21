@@ -87,20 +87,20 @@ connect(const std::string & hostname,
                  << strerror(errno) << endl;
             continue;
         }
-            
+
         if (::connect(sock, rp->ai_addr, rp->ai_addrlen) != -1) {
             cerr << "connected" << endl;
             break;                  /* Success */
-        }            
+        }
 
         cerr << "couldn't connect: " << strerror(errno) << endl;
 
         ::close(sock);
     }
-        
+
     if (!rp)
         throw ML::Exception("couldn't connect anywhere");
-        
+
     freeaddrinfo(result);           /* No longer needed */
 }
 
@@ -136,26 +136,26 @@ connect(const std::string & hostname,
     SocketConnection::connect(hostname, port);
 
     /* Create a session instance
-     */ 
+     */
     session = libssh2_session_init();
 
     if(!session)
         throw ML::Exception("couldn't get libssh2 session");
- 
+
     /* ... start it up. This will trade welcome banners, exchange keys,
      * and setup crypto, compression, and MAC layers
-     */ 
+     */
     int rc = libssh2_session_handshake(session, sock);
 
     if(rc) {
         throw ML::Exception("error establishing session");
     }
- 
+
     /* At this point we havn't yet authenticated.  The first thing to do
      * is check the hostkey's fingerprint against our known hosts Your app
      * may have it hard coded, may go to a file, may present it to the
      * user, that's your call
-     */ 
+     */
     const char * fingerprint
         = libssh2_hostkey_hash(session, LIBSSH2_HOSTKEY_HASH_SHA1);
 
@@ -171,7 +171,7 @@ SshConnection::
 passwordAuth(const std::string & username,
                   const std::string & password)
 {
-    /* We could authenticate via password */ 
+    /* We could authenticate via password */
     if (libssh2_userauth_password(session,
                                   username.c_str(),
                                   password.c_str())) {
@@ -186,7 +186,7 @@ publicKeyAuth(const std::string & username,
               const std::string & publicKeyFile,
               const std::string & privateKeyFile)
 {
-/* Or by public key */ 
+/* Or by public key */
     if (libssh2_userauth_publickey_fromfile(session, username.c_str(),
                                             publicKeyFile.c_str(),
                                             privateKeyFile.c_str(),
@@ -194,12 +194,12 @@ publicKeyAuth(const std::string & username,
         throw ML::Exception("public key authentication failed: " + lastError());
     }
 }
- 
+
 void
 SshConnection::
 setBlocking()
 {
-    /* Since we have not set non-blocking, tell libssh2 we are blocking */ 
+    /* Since we have not set non-blocking, tell libssh2 we are blocking */
     libssh2_session_set_blocking(session, 1);
 }
 
@@ -260,45 +260,45 @@ ls() const
         char mem[512];
         char longentry[512];
         LIBSSH2_SFTP_ATTRIBUTES attrs;
- 
-        /* loop until we fail */ 
+
+        /* loop until we fail */
         int rc = libssh2_sftp_readdir_ex(handle, mem, sizeof(mem),
 
                                          longentry, sizeof(longentry),
                                          &attrs);
         if(rc > 0) {
             /* rc is the length of the file name in the mem
-               buffer */ 
- 
+               buffer */
+
             if (longentry[0] != '\0') {
                 printf("%s\n", longentry);
             } else {
                 if(attrs.flags & LIBSSH2_SFTP_ATTR_PERMISSIONS) {
                     /* this should check what permissions it
-                       is and print the output accordingly */ 
+                       is and print the output accordingly */
                     printf("--fix----- ");
                 }
                 else {
                     printf("---------- ");
                 }
- 
+
                 if(attrs.flags & LIBSSH2_SFTP_ATTR_UIDGID) {
                     printf("%4ld %4ld ", attrs.uid, attrs.gid);
                 }
                 else {
                     printf("   -    - ");
                 }
- 
+
                 if(attrs.flags & LIBSSH2_SFTP_ATTR_SIZE) {
                     printf("%8lld ", (unsigned long long)attrs.filesize);
                 }
-                    
+
                 printf("%s\n", mem);
             }
         }
         else
             break;
- 
+
     } while (1);
 }
 
@@ -310,8 +310,8 @@ forEachFile(const OnFile & onFile) const
         char mem[512];
         char longentry[512];
         Attributes attrs;
- 
-        /* loop until we fail */ 
+
+        /* loop until we fail */
         int rc = libssh2_sftp_readdir_ex(handle,
                                          mem, sizeof(mem),
                                          longentry, sizeof(longentry),
@@ -319,13 +319,13 @@ forEachFile(const OnFile & onFile) const
 
         if(rc > 0) {
             /* rc is the length of the file name in the mem
-               buffer */ 
+               buffer */
             string filename(mem, mem + rc);
             onFile(filename, attrs);
         }
         else
             break;
- 
+
     } while (1);
 }
 
@@ -378,7 +378,7 @@ downloadTo(const std::string & filename) const
     size_t bufSize = 1024 * 1024;
 
     char * buf = new char[bufSize];
-            
+
     Date start = Date::now();
 
     for (;;) {
@@ -436,7 +436,7 @@ connectPasswordAuth(const std::string & hostname,
     SshConnection::passwordAuth(username, password);
 
     sftp_session = libssh2_sftp_init(session);
- 
+
     if (!sftp_session) {
         throw ML::Exception("can't initialize SFTP session: "
                             + lastError());
@@ -456,7 +456,7 @@ connectPublicKeyAuth(const std::string & hostname,
     SshConnection::publicKeyAuth(username, publicKeyFile, privateKeyFile);
 
     sftp_session = libssh2_sftp_init(session);
- 
+
     if (!sftp_session) {
         throw ML::Exception("can't initialize SFTP session: "
                             + lastError());
@@ -470,7 +470,7 @@ getDirectory(const std::string & path)
 {
     LIBSSH2_SFTP_HANDLE * handle
         = libssh2_sftp_opendir(sftp_session, path.c_str());
-        
+
     if (!handle) {
         throw ML::Exception("couldn't open path: " + lastError());
     }
@@ -486,7 +486,7 @@ openFile(const std::string & path)
         = libssh2_sftp_open_ex(sftp_session, path.c_str(),
                                path.length(), LIBSSH2_FXF_READ, 0,
                                LIBSSH2_SFTP_OPENFILE);
-        
+
     if (!handle) {
         throw ML::Exception("couldn't open path: " + lastError());
     }
@@ -504,7 +504,7 @@ getAttributes(const std::string & path, Attributes & attrs)
                                    &attrs);
     return (res != -1);
 }
-    
+
 void
 SftpConnection::
 close()
@@ -523,13 +523,13 @@ uploadFile(const char * start,
            size_t size,
            const std::string & path)
 {
-    /* Request a file via SFTP */ 
+    /* Request a file via SFTP */
     LIBSSH2_SFTP_HANDLE * handle =
         libssh2_sftp_open(sftp_session, path.c_str(),
                           LIBSSH2_FXF_WRITE|LIBSSH2_FXF_CREAT|LIBSSH2_FXF_TRUNC,
                           LIBSSH2_SFTP_S_IRUSR|LIBSSH2_SFTP_S_IWUSR|
                           LIBSSH2_SFTP_S_IRGRP|LIBSSH2_SFTP_S_IROTH);
-    
+
     if (!handle) {
         throw ML::Exception("couldn't open path: " + lastError());
     }
@@ -541,19 +541,19 @@ uploadFile(const char * start,
     Date lastTime = started;
 
     for (; offset < size; ) {
-        /* write data in a loop until we block */ 
+        /* write data in a loop until we block */
         size_t toSend = std::min<size_t>(size - offset,
                                          1024 * 1024);
 
         ssize_t rc = libssh2_sftp_write(handle,
                                         start + offset,
                                         toSend);
-        
+
         if (rc == -1)
             throw ML::Exception("couldn't upload file: " + lastError());
 
         offset += rc;
-        
+
         if (offset > lastPrint + 5 * 1024 * 1024 || offset == size) {
             Date now = Date::now();
 
@@ -572,7 +572,7 @@ uploadFile(const char * start,
                                mbSecInst,
                                mbSecOverall)
                  << endl;
-                               
+
 
             lastPrint = offset;
             lastTime = now;
@@ -580,7 +580,7 @@ uploadFile(const char * start,
         //cerr << "at " << offset / 1024.0 / 1024.0
         //     << " of " << size << endl;
     }
- 
+
     libssh2_sftp_close(handle);
 }
 
@@ -602,7 +602,7 @@ struct SftpStreamingDownloadSource {
           public boost::iostreams::device_tag,
           public boost::iostreams::closable_tag
     { };
-    
+
     struct Impl {
         Impl()
             : owner(0), offset(0), handle(0)
@@ -627,7 +627,7 @@ struct SftpStreamingDownloadSource {
                 = libssh2_sftp_open_ex(owner->sftp_session, path.c_str(),
                                        path.length(), LIBSSH2_FXF_READ, 0,
                                        LIBSSH2_SFTP_OPENFILE);
-            
+
             if (!handle) {
                 throw ML::Exception("couldn't open path: "
                                     + owner->lastError());
@@ -647,7 +647,7 @@ struct SftpStreamingDownloadSource {
             if (numRead < 0) {
                 throw ML::Exception("read(): " + owner->lastError());
             }
-            
+
             return numRead;
         }
     };
@@ -714,7 +714,7 @@ struct SftpStreamingUploadSource {
         LIBSSH2_SFTP_HANDLE * handle;
         std::string path;
         ML::OnUriHandlerException onException;
-        
+
         size_t offset;
         size_t lastPrint;
         Date lastTime;
@@ -723,13 +723,13 @@ struct SftpStreamingUploadSource {
 
         void start()
         {
-            /* Request a file via SFTP */ 
+            /* Request a file via SFTP */
             handle =
                 libssh2_sftp_open(owner->sftp_session, path.c_str(),
                                   LIBSSH2_FXF_WRITE|LIBSSH2_FXF_CREAT|LIBSSH2_FXF_TRUNC,
                                   LIBSSH2_SFTP_S_IRUSR|LIBSSH2_SFTP_S_IWUSR|
                                   LIBSSH2_SFTP_S_IRGRP|LIBSSH2_SFTP_S_IROTH);
-            
+
             if (!handle) {
                 onException();
                 throw ML::Exception("couldn't open path: " + owner->lastError());
@@ -737,7 +737,7 @@ struct SftpStreamingUploadSource {
 
             startDate = Date::now();
         }
-        
+
         void stop()
         {
             if (handle) libssh2_sftp_close(handle);
@@ -750,33 +750,33 @@ struct SftpStreamingUploadSource {
             while (done < n) {
 
                 ssize_t rc = libssh2_sftp_write(handle, s + done, n - done);
-            
+
                 if (rc == -1) {
                     onException();
                     throw ML::Exception("couldn't upload file: " + owner->lastError());
                 }
-            
+
                 offset += rc;
                 done += rc;
 
                 if (offset > lastPrint + 5 * 1024 * 1024) {
                     Date now = Date::now();
-                
+
                     double mb = 1024 * 1024;
-                
+
                     double doneMb = offset / mb;
                     double elapsedOverall = now.secondsSince(startDate);
                     double mbSecOverall = doneMb / elapsedOverall;
                     double elapsedSince = now.secondsSince(lastTime);
                     double mbSecInst = (offset - lastPrint) / mb / elapsedSince;
-                
+
                     cerr << ML::format("done %.2fMB at %.2fMB/sec inst and %.2fMB/sec overall",
-                                       doneMb, 
+                                       doneMb,
                                        mbSecInst,
                                        mbSecOverall)
                          << endl;
-                
-                
+
+
                     lastPrint = offset;
                     lastTime = now;
                 }
@@ -829,7 +829,7 @@ streamingUpload(const std::string & path)
     auto onException = [&] { result.notifyException(); };
     auto sb = streamingUploadStreambuf(path, onException);
     result.openFromStreambuf(sb.release(), true, path);
-    
+
     return result;
 }
 
@@ -852,7 +852,7 @@ streamingDownload(const std::string & path)
     ML::filter_istream result;
     auto sb = streamingDownloadStreambuf(path);
     result.openFromStreambuf(sb.release(), true, path);
-    
+
     return result;
 }
 
@@ -903,7 +903,7 @@ void registerSftpHostPassword(const std::string & hostname,
     info.sftpHost = hostname;
     info.connection = std::make_shared<SftpConnection>();
     info.connection->connectPasswordAuth(hostname, username, password, port);
-    
+
     sftpHosts[hostname] = info;
 }
 
@@ -932,7 +932,7 @@ struct RegisterSftpHandler {
     static std::pair<std::streambuf *, bool>
     getSftpHandler(const std::string & scheme,
                    const std::string & resource,
-                   std::ios_base::open_mode mode,
+                   std::ios_base::openmode mode,
                    const std::map<std::string, std::string> & options,
                    const ML::OnUriHandlerException & onException)
     {

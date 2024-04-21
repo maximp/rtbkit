@@ -97,7 +97,7 @@ private:
         /* header and body write callbacks */
         CurlWrapper::Easy::CurlCallback onHeader_;
         CurlWrapper::Easy::CurlCallback onWrite_;
-        size_t onCurlHeader(const char * data, size_t size) noexcept;
+        size_t onCurlHeader(const char * data, size_t size);
         size_t onCurlWrite(const char * data, size_t size) noexcept;
 
         /* body read callback */

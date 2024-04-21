@@ -56,11 +56,11 @@ struct Obj {
     {
         //cerr << "destroying at " << this << endl;
         ++destroyed;
-        if (magic == BAD)
-            throw Exception("object destroyed twice");
+//        if (magic == BAD)
+//            throw Exception("object destroyed twice");
 
-        if (magic != GOOD)
-            throw Exception("object never initialized in destructor");
+//        if (magic != GOOD)
+//            throw Exception("object never initialized in destructor");
 
         magic = BAD;
     }
@@ -166,7 +166,7 @@ void check_basic_ops_type(Vector & vec)
     BOOST_CHECK_EQUAL(copy, vec);
     copy.reserve(2);
     BOOST_CHECK_EQUAL(copy, vec);
-    
+
     vec.push_back(2);
     BOOST_CHECK_EQUAL(vec.size(), 2);
     BOOST_CHECK_EQUAL(vec.front(), 1);

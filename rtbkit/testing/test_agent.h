@@ -64,10 +64,10 @@ struct TestAgent : public BiddingAgent {
             //cerr << "numBidsOutstanding = " << oldOutstanding << endl;
 
             if (oldOutstanding == 0) return true;
-            
+
             Date now = Date::now();
             if (now >= timeout && waitTime != 0.0) return false;
-            
+
             int res;
 
             if (waitTime == 0)
@@ -81,7 +81,7 @@ struct TestAgent : public BiddingAgent {
             if (errno == ETIMEDOUT) return false;
             if (errno == EINTR) continue;
             if (errno == EAGAIN) continue;
-            
+
             throw ML::Exception(errno, "futex_wait");
         }
     }
@@ -101,7 +101,7 @@ struct TestAgent : public BiddingAgent {
 
     std::set<Id> awaitingStatus;
     int numBidsOutstanding;
-    
+
     void defaultError(double timestamp, const std::string & error,
                  const std::vector<std::string> & message)
     {
@@ -128,7 +128,7 @@ struct TestAgent : public BiddingAgent {
         finishBid(numWins, args);
         //cerr << args.accountInfo << endl;
     }
-                
+
     void defaultLoss(const RTBKIT::BidResult & args)
     {
         finishBid(numLosses, args);
@@ -191,25 +191,39 @@ struct TestAgent : public BiddingAgent {
         Guard guard(lock);
         if (!awaitingStatus.insert(id).second)
             throw ML::Exception("auction already in progress");
-        
+
         numBidsOutstanding = awaitingStatus.size();
     }
 
     void setupCallbacks()
     {
         onError
-            = boost::bind(&TestAgent::defaultError, this, _1, _2, _3);
+            = boost::bind(&TestAgent::defaultError, this,
+                boost::placeholders::_1,
+                boost::placeholders::_2,
+                boost::placeholders::_3);
         onBidRequest
-            = boost::bind(&TestAgent::bidNull, this, _1, _2, _3, _4, _5, _6, _7);
+            = boost::bind(&TestAgent::bidNull, this,
+                boost::placeholders::_1,
+                boost::placeholders::_2,
+                boost::placeholders::_3,
+                boost::placeholders::_4,
+                boost::placeholders::_5,
+                boost::placeholders::_6,
+                boost::placeholders::_7);
         onWin
-            = boost::bind(&TestAgent::defaultWin, this, _1);
+            = boost::bind(&TestAgent::defaultWin, this,
+                boost::placeholders::_1);
         onLoss
-            = boost::bind(&TestAgent::defaultLoss, this, _1);
+            = boost::bind(&TestAgent::defaultLoss, this,
+                boost::placeholders::_1);
         onNoBudget
-            = boost::bind(&TestAgent::defaultNoBudget, this, _1);
+            = boost::bind(&TestAgent::defaultNoBudget, this,
+                boost::placeholders::_1);
         onTooLate
-            = boost::bind(&TestAgent::defaultTooLate, this, _1);
-    }    
+            = boost::bind(&TestAgent::defaultTooLate, this,
+                boost::placeholders::_1);
+    }
 
     void configure()
     {

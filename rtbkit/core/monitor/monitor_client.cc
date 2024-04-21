@@ -46,7 +46,7 @@ MonitorClient::
 checkStatus()
 {
     if (!testMode) {
-        Guard(requestLock);
+        Guard lock(requestLock);
 
         if (lastSuccess.plusSeconds(checkTimeout_) < Date::now()) {
             push(onDone, "GET", "/v1/status");

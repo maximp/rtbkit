@@ -129,17 +129,17 @@ struct Results_Dist {
 struct Results_Single {
     Results_Single(float & result, int label)
         : result(result), label(label) {}
-    
+
     JML_ALWAYS_INLINE
     void operator () (const distribution<float> & dist, float weight,
                       const Feature & feature) const
     {
         result += weight * dist[label];
     }
-    
+
     float & result;
     int label;
-    
+
 };
 
 } // file scope
@@ -153,7 +153,7 @@ predict(const Feature_Set & features,
     distribution<float> result(label_count());
     if (bias.size()) result += bias;
     predict_core(features, Results_Dist(result, *feature_space()));
-    
+
     for (unsigned i = 0;  i < result.size();  ++i) {
         if (!finite(result[i])) {
             cerr << "result = " << result << endl;
@@ -197,7 +197,7 @@ predict(const Feature_Set & features,
             distribution<float> result2(label_count());
             if (bias.size()) result2 += bias;
             predict_core(features, Results_Dist(result2, *feature_space()));
-            
+
             cerr << "result = " << result << endl;
             cerr << "output of predict_core = " << result2 << endl;
             cerr << "total = " << total << endl;
@@ -219,7 +219,7 @@ predict(const Feature_Set & features,
             throw Exception("non-finite result");
         }
     }
-    
+
     return result;
 }
 
@@ -240,7 +240,7 @@ predict(int label, const Feature_Set & features,
         return predict(features)[label];
     }
 
-    
+
     float result = 0.0;
     if (bias.size()) result += bias[label];
     predict_core(features, Results_Single(result, label));
@@ -297,7 +297,7 @@ struct Accuracy_Job_Info {
     Lock lock;
     double & correct;
     double & margin;
-    
+
     Accuracy_Job_Info(const Training_Data & data,
                       const distribution<float> & example_weights,
                       const Boosted_Stumps & stumps,
@@ -319,16 +319,16 @@ struct Accuracy_Job_Info {
 
         const std::vector<Label> & labels
             = data.index().labels(stumps.predicted());
-        
+
         if (bin_sym) {
             for (Boosted_Stumps::const_iterator it = stumps.begin();
                  it != stumps.end();  ++it) {
-                
+
                 typedef Binsym_Updater<Boosting_Predict> Updater;
                 typedef Update_Weights<Updater> Update;
                 Updater updater;
                 Update update(updater);
-                
+
                 update(*it, opt_info, 1.0, output, data, start_x, end_x);
             }
 
@@ -350,12 +350,12 @@ struct Accuracy_Job_Info {
         else {
             for (Boosted_Stumps::const_iterator it = stumps.begin();
                  it != stumps.end();  ++it) {
-                
+
                 typedef Normal_Updater<Boosting_Predict> Updater;
                 typedef Update_Weights<Updater> Update;
                 Updater updater(nl);
                 Update update(updater);
-                
+
                 update(*it, opt_info, 1.0, output, data, start_x, end_x);
             }
 
@@ -389,7 +389,7 @@ struct Accuracy_Job {
 
     Accuracy_Job_Info & info;
     int x_start, x_end;
-    
+
     void operator () () const
     {
         info.calc(x_start, x_end);
@@ -407,11 +407,11 @@ accuracy(const Training_Data & data,
     PROFILE_FUNCTION(t_accuracy);
     unsigned nx = data.example_count();
     unsigned nl = label_count();
-    
+
     boost::multi_array<float, 2> scores(boost::extents[nx][nl]);
 
     bool bin_sym = convert_bin_sym(scores, data, predicted_, all_features());
-    
+
     double correct = 0.0, margin = 0.0;
 
     Optimization_Info new_opt_info;
@@ -423,7 +423,7 @@ accuracy(const Training_Data & data,
                            correct, margin);
 
     static Worker_Task & worker = Worker_Task::instance(num_threads() - 1);
-    
+
     int group;
     {
         int parent = -1;  // no parent group
@@ -433,9 +433,9 @@ accuracy(const Training_Data & data,
         Call_Guard guard(boost::bind(&Worker_Task::unlock_group,
                                      boost::ref(worker),
                                      group));
-        
+
         unsigned job_ex = 2048 / scores.shape()[1];
-        
+
         for (unsigned x = 0;  x < data.example_count();  x += job_ex) {
             unsigned end = std::min(x + job_ex, nx);
             worker.add(Accuracy_Job(info, x, end),
@@ -446,10 +446,10 @@ accuracy(const Training_Data & data,
     }
 
     worker.run_until_finished(group);
-    
+
     double total
         = (example_weights.empty() ? (float)nx : example_weights.total());
-    
+
     return make_pair(correct / total, margin / total);
 }
 
@@ -515,6 +515,7 @@ namespace {
 static const std::string BOOSTED_STUMPS_MAGIC = "BOOSTED_STUMPS";
 static const compact_size_t BOOSTED_STUMPS_VERSION = 4;
 
+/* UNUSED
 void serialize_dist(const distribution<float> & dist,
                     DB::Store_Writer & store)
 {
@@ -532,7 +533,9 @@ void serialize_dist(const distribution<float> & dist,
     }
     else store << compact_const(0);
 }
+*/
 
+/* UNUSED
 void reconstitute_dist(distribution<float> & dist,
                        DB::Store_Reader & store,
                        size_t nl)
@@ -557,6 +560,7 @@ void reconstitute_dist(distribution<float> & dist,
             store >> dist[i];
     }
 }
+*/
 
 } // file scope
 
@@ -576,7 +580,7 @@ void Boosted_Stumps::serialize(DB::Store_Writer & store) const
 
         const Feature & feat = it->first.feature();
         feature_space()->serialize(store, feat);
-        
+
         /* Work out how many entries we have with this feature. */
         int nf = 0;
         stumps_type::const_iterator first = it;
@@ -584,7 +588,7 @@ void Boosted_Stumps::serialize(DB::Store_Writer & store) const
             ++nf;
             ++it;
         }
-        
+
         store << compact_const(nf);
         std::swap(it, first);
 
@@ -614,7 +618,7 @@ reconstitute(DB::Store_Reader & store,
                                "version %zd, only <= %zd supported",
                                version.size_,
                                BOOSTED_STUMPS_VERSION.size_));
-    
+
     compact_size_t label_count(store);
 
     predicted_ = MISSING_FEATURE;
@@ -623,7 +627,7 @@ reconstitute(DB::Store_Reader & store,
     }
 
     Boosted_Stumps new_me(features, predicted_, label_count);
-    
+
     if (version >= 1) {  // added in version 1
         store >> new_me.output;
     }
@@ -634,7 +638,7 @@ reconstitute(DB::Store_Reader & store,
     else new_me.bias.clear();
 
     //ofstream dump("stump-load-dump.txt");
-    
+
     if (version >= 3) {
         /* Load compact version... */
         compact_size_t stump_count(store);
@@ -658,7 +662,7 @@ reconstitute(DB::Store_Reader & store,
 #endif
             }
         }
-        
+
         if (ns != stump_count)
             throw Exception("Boosted_Stumps::reconstitute(): logic error");
 
@@ -722,7 +726,7 @@ merge_into(const Classifier_Impl & other, float weight)
         combine(*as_stumps, weight);
         return true;
     }
-    
+
     return false;
 }
 
@@ -746,7 +750,7 @@ merge(const Classifier_Impl & other, float weight) const
         me_copy->combine(*as_stumps, weight);
         return me_copy.release();
     }
-    
+
     return 0;
 }
 
@@ -764,7 +768,7 @@ Register_Factory<Classifier_Impl, Boosted_Stumps>
 } // namespace ML
 
 ENUM_INFO_NAMESPACE
-  
+
 const Enum_Opt<ML::Boosted_Stumps::Output>
 Enum_Info<ML::Boosted_Stumps::Output>::OPT[3] = {
     { "raw",         ML::Boosted_Stumps::RAW        },
@@ -775,4 +779,3 @@ const char * Enum_Info<ML::Boosted_Stumps::Output>::NAME
     = "Boosted_Stumps::Output";
 
 END_ENUM_INFO_NAMESPACE
-

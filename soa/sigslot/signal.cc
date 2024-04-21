@@ -1,7 +1,7 @@
 /* signal.cc
    Jeremy Barnes, 15 November 2010
    Copyright (c) 2010 Datacratic.  All rights reserved.
-   
+
    Code to deal with notifiers.
 */
 
@@ -97,10 +97,11 @@ inheritSignals(SignalRegistryBase & inheritFrom)
              end = inheritFrom.signals.end();
          it != end;  ++it)
         addSignal(it->second, true /* inherited */);
-    
+
     parentRegistrations.push_back
         (inheritFrom.newEvent.connect
-         (boost::bind(&SignalRegistryBase::addSignal, this, _2, true)));
+         (boost::bind(&SignalRegistryBase::addSignal, this,
+boost::placeholders::_2, true)));
 }
 
 void
@@ -118,7 +119,7 @@ add(const std::string & eventName,
     info.registerFn = registerFn;
     info.data = data;
     info.inherited = false;
-    
+
     addSignal(info, false /* inherited */);
 }
 
@@ -129,7 +130,7 @@ addSignal(const Info & signal, bool inherited)
     std::string name = signal.eventName;
     bool exists = signals.count(name);
     Info & info = signals[name];
-    
+
     if (exists) {
         if (info.inherited && inherited)
             throw ML::Exception("signal " + signal.eventName
@@ -138,22 +139,22 @@ addSignal(const Info & signal, bool inherited)
         if (!info.inherited && !inherited)
             throw ML::Exception("signal " + signal.eventName
                                 + " was added twice");
-        
+
         if (info.callbackType != signal.callbackType)
             throw ML::Exception("signal " + signal.eventName
                                 + " had inherited callback type "
                                 + ML::demangle(*signal.callbackType)
                                 + " but local callback type "
                                 + ML::demangle(*info.callbackType));
-        
+
         // The inherited version shouldn't override our local version
         if (!info.inherited && inherited)
-            return;  
+            return;
     }
-    
+
     info = signal;
     info.inherited = inherited;
-    
+
     // Notify anything that needs to know that we have a new event
     newEvent(*this, info);
 }

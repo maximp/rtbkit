@@ -73,13 +73,13 @@ struct judy_iterator : public Base {
         : base_type(other)
     {
     }
-    
+
     judy_iterator & operator ++ ()
     {
         base_type::operator ++();
             return *this;
     }
-    
+
     judy_iterator operator ++ (int)
     {
         judy_iterator result = *this;
@@ -92,19 +92,19 @@ struct judy_iterator : public Base {
         base_type::operator --();
         return *this;
     }
-    
+
     judy_iterator operator -- (int)
     {
         judy_iterator result = *this;
         operator -- ();
         return result;
     }
-    
+
     value_type & operator * () const
     {
         return *deref();
     }
-    
+
     value_type * operator -> () const
     {
         return deref();
@@ -119,43 +119,43 @@ struct judy_pair_iterator : public Base {
 
     using Base::deref;
     using Base::key_;
-    
+
     judy_pair_iterator(const base_type & other)
         : base_type(other)
     {
     }
-    
+
     judy_pair_iterator & operator ++ ()
     {
         base_type::operator ++();
         return *this;
     }
-    
+
     judy_pair_iterator operator ++ (int)
     {
         judy_pair_iterator result = *this;
         operator ++ ();
         return result;
     }
-    
+
     judy_pair_iterator & operator -- ()
     {
         base_type::operator --();
         return *this;
     }
-    
+
     judy_pair_iterator operator -- (int)
     {
         judy_pair_iterator result = *this;
         operator -- ();
         return result;
     }
-    
+
     value_type operator * () const
     {
         return std::make_pair(key_, *deref());
     }
-    
+
 private:
     value_type * operator -> () const;  // can't access
 };
@@ -194,7 +194,7 @@ struct judyl_base {
     }
 
     ~judyl_base()
-    { 
+    {
         clear();
     }
 
@@ -203,7 +203,7 @@ struct judyl_base {
 
         /** Empty constructor; to be assigned to later. */
         iterator_base() {}
-        
+
         /** Construct pointing to the given key */
         iterator_base(const judyl_base * base, key_type key)
             : base(base), key_(key), end_(false)
@@ -224,7 +224,7 @@ struct judyl_base {
         const judyl_base * base;
         key_type key_;
         bool end_;
-        
+
         iterator_base & operator ++ ()
         {
             if (end_)
@@ -236,7 +236,7 @@ struct judyl_base {
             if (!pvalue) end_ = true;
             return *this;
         }
-        
+
         iterator_base operator ++ (int)
         {
             iterator_base result = *this;
@@ -259,7 +259,7 @@ struct judyl_base {
             if (pvalue == 0) throw Exception("iterated off front");
             return *this;
         }
-        
+
         iterator_base operator -- (int)
         {
             iterator_base result = *this;
@@ -298,13 +298,13 @@ struct judyl_base {
 
             //data_type * pvalue = (value_type *)JudyLGet(base->array, key_, PJE0);
             data_type * pvalue = base->jlg(key_);
-            
+
             if (!pvalue) throw Exception("iterator_base: dereferencing deleted "
                                          "key");
             return pvalue;
         }
     };
-    
+
     typedef judy_iterator<iterator_base, unsigned long> iterator;
     typedef judy_iterator<iterator_base, const unsigned long> const_iterator;
     typedef judy_pair_iterator<iterator_base, unsigned long> const_pair_iterator;
@@ -404,7 +404,7 @@ struct judyl_base {
         if (pvalue) return iterator_base(this, key);
         else return end();
     }
-    
+
     const_iterator find(const key_type & key) const
     {
         data_type * pvalue = jlg(key);
@@ -450,22 +450,22 @@ struct judyl_base {
         data_type * result = 0;
         if (P_L) {
             if (P_L[0] < 31) {
-                Word_t  _pop1 = P_L[0] + 1;                         
-                Word_t  _EIndex = P_L[_pop1];                       
-                Word_t  _off  = j__L_LeafWOffset[_pop1] - 1;        
+                Word_t  _pop1 = P_L[0] + 1;
+                Word_t  _EIndex = P_L[_pop1];
+                Word_t  _off  = j__L_LeafWOffset[_pop1] - 1;
                 if (_pop1 >= 16)
-                    if (key > P_L[_pop1/2]) P_L += _pop1/2;     
+                    if (key > P_L[_pop1/2]) P_L += _pop1/2;
                 if (key <= _EIndex) {
-                    while(key > *(++P_L));                      
+                    while(key > *(++P_L));
                     if (*P_L == key)
                         result = reinterpret_cast<data_type *>(P_L+_off);
-                }  
-            }                                               
-            else {                                                   
+                }
+            }
+            else {
                 result = reinterpret_cast<data_type *>
-                    (j__udyLGet(P_L, key));    
-            }                                            
-        }                                                           
+                    (j__udyLGet(P_L, key));
+            }
+        }
 
         return result;
     }
@@ -474,28 +474,28 @@ struct judyl_base {
     {
         PWord_t P_L  = reinterpret_cast<PWord_t>(array);
         data_type * result = 0;
-                                                                
+
         if (P_L) {
             if (P_L[0] < 31) {
-                Word_t _pop1 = P_L[0] + 1;                          
-                Word_t _off  = j__L_LeafWOffset[_pop1] -1;          
+                Word_t _pop1 = P_L[0] + 1;
+                Word_t _off  = j__L_LeafWOffset[_pop1] -1;
                 if (key < P_L[_pop1]) {
                     while(1) {
                         if (key < *(++P_L)) {
-                            key = *P_L;                         
+                            key = *P_L;
                             result = reinterpret_cast<data_type *>(P_L + _off);
-                            break;                                
+                            break;
                         }
                     }
                 }
             }
-            else 
+            else
                 result = reinterpret_cast<data_type *>
-                    (JudyLNext(array, &key, PJE0)); 
+                    (JudyLNext(array, &key, PJE0));
         }
 
         return result;
-    }                                                       
+    }
 };
 
 inline size_t memusage(const judyl_base & array)
@@ -527,13 +527,13 @@ public:
 
     judyl_typed & operator = (const judyl_typed & other)
     {
-        if (&other == this) return;
+        if (&other == this) return *this;
         clear();
         insert(const_pair_iterator(other.begin()),
                const_pair_iterator(other.end()));
         return *this;
     }
-    
+
     template<class Iterator>
     judyl_typed(Iterator first, Iterator last)
     {
@@ -541,7 +541,7 @@ public:
     }
 
     ~judyl_typed()
-    { 
+    {
         clear();
     }
 
@@ -673,18 +673,18 @@ public:
     {
         return judyl_base::find(key);
     }
-    
+
     const_iterator find(const key_type & key) const
     {
         return judyl_base::find(key);
     }
-    
+
     void clear()
     {
         /* Need to iterate over to run destructors. */
         for (iterator it = begin();  it != end();  ++it)
             it->~data_type();
-        
+
         judyl_base::clear();
     }
 
@@ -744,13 +744,13 @@ public:
 
     judyl_typed & operator = (const judyl_typed & other)
     {
-        if (&other == this) return;
+        if (&other == this) return *this;
         clear();
         insert(const_pair_iterator(other.begin()),
                const_pair_iterator(other.end()));
         return *this;
     }
-    
+
     template<class Iterator>
     judyl_typed(Iterator first, Iterator last)
     {
@@ -758,7 +758,7 @@ public:
     }
 
     ~judyl_typed()
-    { 
+    {
         clear();
     }
 
@@ -851,7 +851,7 @@ public:
             (*ppvalue) = new data_type(x.second);
             inserted = true;
         }
-        
+
         return std::make_pair(iterator_base(this, x.first),
                               inserted);
     }
@@ -890,21 +890,21 @@ public:
     {
         return judyl_base::find(key);
     }
-    
+
     const_iterator find(const key_type & key) const
     {
         return judyl_base::find(key);
     }
-    
+
     void clear()
     {
         /* Destroy all of the leaf objects. */
         for (iterator it = begin();  it != end();  ++it)
             delete &(*it);
-        
+
         judyl_base::clear();
     }
-    
+
     data_type & operator [] (const key_type & key)
     {
         data_type ** ppvalue = reinterpret_cast<data_type **>(this->jlg(key));

@@ -1,7 +1,7 @@
 /* master_banker.cc
    Jeremy Barnes, 8 November 2012
    Copyright (c) 2012 Datacratic.  All rights reserved.
-   
+
    Master banker class.
 */
 
@@ -269,7 +269,7 @@ saveAll(const Accounts & toSave, OnSavedCallback onSaved)
             }
             else if (storeCommands.size() > 1) {
                  storeCommands.push_back(EXEC);
-                 
+
                  const Date beforePhase2Time = Date::now();
 
                  saveResult.recordLatency(
@@ -357,13 +357,13 @@ moveToActive(const vector<AccountKey> & archivedAccountKeys, OnRestoredCallback 
         onRestored(archivedAccounts, PERSISTENCE_ERROR, s);
         return;
     }
-    
+
     // get accounts from redis.
     Redis::Command getAccountsCommand(MGET);
     for (const auto & a: archivedAccountKeys)
         getAccountsCommand.addArg(PREFIX + a.toString());
     Redis::Result result = itl->redis->exec(getAccountsCommand, itl->timeout);
-    
+
     if (!result.ok()) {
         LOG(error) << "get archived accounts failed with"
             << "error '" << results.error() << "'" << endl;
@@ -379,7 +379,7 @@ moveToActive(const vector<AccountKey> & archivedAccountKeys, OnRestoredCallback 
     string s = "accounts retrieved from archive:\n";
     for (int i = 0; i < result.reply().length(); ++i) {
         s += archivedAccountKeys[i].toString() + " = ";
-        s += result.reply()[i].asString() + "\n";  
+        s += result.reply()[i].asString() + "\n";
     }
     LOG(debug) << s << endl;
 
@@ -417,11 +417,11 @@ restoreFromArchive(const AccountKey & key, OnRestoredCallback onRestored)
     existanceCommands.push_back(EXISTS(PREFIX + accountName));
     existanceCommands.push_back(SISMEMBER("banker:accounts", accountName));
     existanceCommands.push_back(SISMEMBER("banker:archive", accountName));
-    
+
     Redis::Results results = itl->redis->execMulti(existanceCommands, itl->timeout);
 
     if (!results.ok()) {
-        LOG(error) << "account check for existance and presence in archive " 
+        LOG(error) << "account check for existance and presence in archive "
             << "failed with error '" << results.error()
             << "'" << endl;
         onRestored(archivedAccounts, PERSISTENCE_ERROR, results.error());
@@ -520,7 +520,7 @@ restoreFromArchive(const AccountKey & key, OnRestoredCallback onRestored)
             this->moveToActive(keysToRestore, onRestored);
         }
     }
-    // account doesn't exist so check if parents exist 
+    // account doesn't exist so check if parents exist
     // and are in accounts or archived key.
     else {
         AccountKey accountKey = key;
@@ -541,11 +541,11 @@ restoreFromArchive(const AccountKey & key, OnRestoredCallback onRestored)
                 << " failed with error '" << results.error() << "'" << endl;
             onRestored(archivedAccounts, PERSISTENCE_ERROR, results.error());
             return;
-        } 
+        }
         // the result should be double the size since there is two checks per account
         else if (results.size() != accountKey.size() * 2) {
             LOG(error) << "result not of the expected length, when checking"
-                << " for parent accounts" << endl 
+                << " for parent accounts" << endl
                 << "result is: " << results.size() << endl
                 << "should be: " << accountKey.size() * 2 << endl;
             onRestored(archivedAccounts, PERSISTENCE_ERROR, results.error());
@@ -664,7 +664,7 @@ init(const shared_ptr<BankerPersistence> & storage, double saveInterval)
     auto & accountsNode
         = versionNode.addSubRouter("/accounts",
                                    "Operations on accounts");
-    
+
     addRouteSyncReturn(accountsNode,
                        "",
                        {"POST"},
@@ -675,7 +675,7 @@ init(const shared_ptr<BankerPersistence> & storage, double saveInterval)
                        this,
                        RestParam<AccountKey>("accountName", "account name to create x:y:z"),
                        RestParam<AccountType>("accountType", "account type (spend or budget)"));
-    
+
     addRouteSyncReturn(accountsNode,
                        "",
                        {"GET"},
@@ -710,7 +710,7 @@ init(const shared_ptr<BankerPersistence> & storage, double saveInterval)
                        &MasterBanker::setBalanceBatched,
                        this,
                        JsonParam<Json::Value>("", "list of accounts to update"));
-    
+
     addRouteSyncReturn(accountsNode,
                        "/shadow",
                        {"PUT", "POST"},
@@ -724,7 +724,7 @@ init(const shared_ptr<BankerPersistence> & storage, double saveInterval)
     auto & account
         = accountsNode.addSubRouter(Rx("/([^/]*)", "/<accountName>"),
                                     "operations on an individual account");
-    
+
     RequestParam<AccountKey> accountKeyParam(-2, "<account>", "account to operate on");
 
     addRouteSyncReturn(account,
@@ -784,7 +784,7 @@ init(const shared_ptr<BankerPersistence> & storage, double saveInterval)
                        accountKeyParam,
                        JsonParam<CurrencyPool>("", "amount to set balance to"),
                        RestParamDefault<AccountType>("accountType", "type of account for implicit creation (default no creation)", AT_NONE));
-    
+
     addRouteSyncReturn(account,
                        "/adjustment",
                        {"PUT", "POST"},
@@ -1088,7 +1088,7 @@ MasterBanker::
 restoreAccount(const AccountKey & key)
 {
     Record record(this, "restoreAttempt");
- 
+
     Guard guard(saveLock);
 
     pair<bool, bool> pAndA = accounts.accountPresentAndActive(key);
@@ -1105,7 +1105,7 @@ restoreAccount(const AccountKey & key)
         return;
 
     int done = 0;
-    
+
     BankerPersistence::OnRestoredCallback onRestored =
             [&] (shared_ptr<Accounts> accountsRestored,
                  const BankerPersistence::PersistenceCallbackStatus status,
@@ -1121,7 +1121,7 @@ restoreAccount(const AccountKey & key)
         ML::futex_wait(done, 0);
     }
 }
-void 
+void
 MasterBanker::
 reactivatePresentAccounts(const AccountKey & key) {
     pair<bool, bool> presentActive = accounts.accountPresentAndActive(key);
@@ -1150,7 +1150,7 @@ setBudget(const AccountKey &key, const CurrencyPool &newBudget)
     Record record(this, "setBudget");
     checkPersistence();
 
-    reactivatePresentAccounts(key); 
+    reactivatePresentAccounts(key);
     return accounts.setBudget(key, newBudget);
 }
 
@@ -1160,7 +1160,7 @@ onCreateAccount(const AccountKey &key, AccountType type)
 {
     Record record(this, "onCreateAccount");
     checkPersistence();
- 
+
     reactivatePresentAccounts(key);
     return accounts.createAccount(key, type);
 }
@@ -1171,7 +1171,7 @@ closeAccount(const AccountKey &key)
 {
     Record record(this, "closeAccount");
     checkPersistence();
- 
+
     reactivatePresentAccounts(key);
     auto account = accounts.closeAccount(key);
     if (account.status == Account::CLOSED)
@@ -1227,7 +1227,7 @@ setBalanceBatched(const Json::Value &transfers)
         result[key] = accounts.setBalance(account, amount, type);
     }
 
-    return std::move(result);
+    return result;
 }
 
 const Account

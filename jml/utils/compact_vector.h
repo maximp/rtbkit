@@ -29,6 +29,8 @@
 
 namespace ML {
 
+#pragma pack(push)
+#pragma pack(1)
 template<typename Data,
          size_t Internal_ = 0,
          typename Size = uint32_t,
@@ -45,10 +47,12 @@ public:
     typedef Data & reference;
     typedef const Data & const_reference;
     enum { Internal = Internal_ };
-    
+
     compact_vector()
         : size_(0), is_internal_(true)
     {
+        ext.pointer_ = 0;
+        ext.capacity_ = 0;
 #if 0
         using namespace std;
         cerr << __PRETTY_FUNCTION__ << endl;
@@ -63,18 +67,24 @@ public:
                    ForwardIterator last)
         : size_(0), is_internal_(true)
     {
+        ext.pointer_ = 0;
+        ext.capacity_ = 0;
         init_copy(first, last, std::distance(first, last));
     }
 
     compact_vector(std::initializer_list<Data> list)
         : size_(0), is_internal_(true)
     {
+        ext.pointer_ = 0;
+        ext.capacity_ = 0;
         init_copy(list.begin(), list.end(), list.size());
     }
 
     compact_vector(size_t initialSize, const Data & element = Data())
         : size_(0), is_internal_(true)
     {
+        ext.pointer_ = 0;
+        ext.capacity_ = 0;
         resize(initialSize, element);
     }
 
@@ -106,7 +116,7 @@ public:
         other.size_ = 0;
         other.is_internal_ = true;
     }
-    
+
     compact_vector & operator = (const compact_vector & other)
     {
         compact_vector new_me(other);
@@ -130,7 +140,7 @@ public:
             Size t = ext.capacity_;
             ext.capacity_ = other.ext.capacity_;
             other.ext.capacity_ = t;
-            
+
             Pointer t2 = ext.pointer_;
             ext.pointer_ = other.ext.pointer_;
             other.ext.pointer_ = t2;
@@ -155,9 +165,9 @@ public:
                 new (other.internal() + i) Data(internal()[i]);
                 internal()[i].~Data();
             }
-            
+
             swap_size(other);
-            
+
             return;
         }
 
@@ -179,7 +189,7 @@ public:
         // Initialize and copy the internal elements for the other one
         uninitialized_move_and_destroy(internal(), internal() + size_,
                                        other.internal());
-        
+
         is_internal_ = false;
         swap_size(other);
         ext.pointer_ = p;
@@ -197,7 +207,7 @@ public:
             using namespace std;
 
 #if COMPACT_VECTOR_DEBUG
-            if (debug) 
+            if (debug)
                 cerr << "deallocating " << ext.capacity_ << " elements at "
                      << ext.pointer_ << " for " << this << endl;
 #endif
@@ -207,7 +217,7 @@ public:
 
         size_ = 0;
     }
-    
+
     void reserve(size_t new_capacity)
     {
         if (capacity() >= new_capacity) return;
@@ -241,7 +251,7 @@ public:
             compact_vector new_me;
             // new_me.init_move((begin(), begin() + new_size, new_size);
             new_me.init_copy(begin(), begin() + new_size, new_size);
-            
+
             swap(new_me);
             return;
         }
@@ -319,7 +329,7 @@ public:
         iterator result = start_insert(pos, n);
 
         std::fill(result, result + n, x);
-        
+
         return result;
     }
 
@@ -440,22 +450,22 @@ public:
 
     Data * unsafe_raw_data() { return data(); }
     const Data * unsafe_raw_data() const { return data(); }
-    
+
 private:
     union {
         struct {
             char internal_[sizeof(Data) * Internal];
-        } JML_PACKED itl;
+        } itl;
         struct {
-            Pointer pointer_;
-            Size capacity_;
-        } JML_PACKED ext;
+            Pointer pointer_ = 0;
+            Size capacity_ = 0;
+        } ext;
     };
-    
+
     struct {
         Size size_: 8 * sizeof(Size) - 1;
         Size is_internal_ : 1;
-    } JML_PACKED;
+    };
 
     bool is_internal() const { return is_internal_; }
     Data * internal() { return (Data *)(itl.internal_); }
@@ -475,7 +485,7 @@ private:
 
         if (to_alloc > max_size())
             throw Exception("compact_vector can't grow that big");
-        
+
         if (to_alloc > Internal) {
             is_internal_ = false;
             ext.pointer_ = allocator.allocate(to_alloc);
@@ -490,7 +500,7 @@ private:
         init(to_alloc);
 
         Data * p = data();
-        
+
         // Copy the objects across into the uninitialized memory
         for (; first != last;  ++first, ++p, ++size_) {
             if (Safe && size_ > to_alloc)
@@ -541,7 +551,7 @@ private:
              << " size() = " << size() << " capacity() = "
                  << capacity() << endl;
 #endif
-        
+
         if (size() + n > capacity()) {
             reserve(size() + n);
 #if COMPACT_VECTOR_DEBUG
@@ -549,7 +559,7 @@ private:
                 cerr << "after reserve: index = " << index << " n = " << n
                      << " size() = " << size() << " capacity() = "
                      << capacity() << endl;
-            
+
 #endif
         }
 
@@ -577,6 +587,7 @@ private:
 
     static Allocator allocator;
 };
+#pragma pack(pop)
 
 template<class Data, size_t Internal, class Size, bool Safe,
          class Pointer, class Allocator>
@@ -657,4 +668,3 @@ operator >> (ML::DB::Store_Reader & store,
 } // namespace ML
 
 #endif /* __utils__compact_vector_h__ */
-

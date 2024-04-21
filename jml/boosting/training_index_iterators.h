@@ -45,7 +45,7 @@ public:
 
     JML_ALWAYS_INLINE JML_COMPUTE_METHOD
     bool empty() const { return size_ == 0; }
-    
+
     JML_ALWAYS_INLINE JML_COMPUTE_METHOD
     Index_Iterator front() const;
 
@@ -54,7 +54,7 @@ public:
 
     JML_ALWAYS_INLINE JML_COMPUTE_METHOD
     Index_Iterator operator [] (int idx) const;
-    
+
     JML_ALWAYS_INLINE JML_COMPUTE_METHOD
     size_t bucket_count() const { return bucket_vals_->size() + 1; }
 
@@ -90,7 +90,7 @@ public:
 
 protected:
     Joint_Index();
-    
+
 private:
     /** Points to the array of values. */
     const float * values_;
@@ -140,7 +140,7 @@ public:
     typedef void * pointer;
     typedef void reference;
     typedef std::random_access_iterator_tag iterator_category;
-    
+
     JML_ALWAYS_INLINE JML_COMPUTE_METHOD
     Index_Iterator() : index(0), n(0) {}
 
@@ -162,14 +162,23 @@ public:
     {
         return n != other.n;
     }
-    
+
     JML_ALWAYS_INLINE JML_COMPUTE_METHOD
     Index_Iterator & operator ++ () { ++n;  return *this; }
+
+    JML_ALWAYS_INLINE JML_COMPUTE_METHOD
+    Index_Iterator & operator -- () { --n;  return *this; }
 
     JML_ALWAYS_INLINE JML_COMPUTE_METHOD
     Index_Iterator operator ++ (int)
     {
         Index_Iterator result(*this);  operator ++ ();  return result;
+    }
+
+    JML_ALWAYS_INLINE JML_COMPUTE_METHOD
+    Index_Iterator operator -- (int)
+    {
+        Index_Iterator result(*this);  operator -- ();  return result;
     }
 
     JML_ALWAYS_INLINE JML_COMPUTE_METHOD
@@ -215,21 +224,21 @@ public:
     /** The value of the variable. */
     JML_ALWAYS_INLINE JML_COMPUTE_METHOD
     float value() const { return index->values_[n]; }
-    
+
     /** Are we missing? */
     JML_ALWAYS_INLINE JML_COMPUTE_METHOD
     bool missing() const { return isnanf(value()); }
-    
+
     JML_ALWAYS_INLINE JML_COMPUTE_METHOD
     unsigned bucket() const { return index->buckets_[n]; }
 
     /** The label of this training example. */
     JML_ALWAYS_INLINE JML_COMPUTE_METHOD
     Label label() const { return index->labels_[n]; }
-    
+
     JML_ALWAYS_INLINE JML_COMPUTE_METHOD
     int label_as_int() const { return index->labels_[n].label_; }
-    
+
     /** The example number. */
     JML_ALWAYS_INLINE JML_COMPUTE_METHOD
     unsigned example() const
@@ -237,7 +246,7 @@ public:
         if (index->examples_) return index->examples_[n];
         else return n;
     }
-    
+
     /** How many times this feature is duplicated for this particular
         example number. */
     JML_ALWAYS_INLINE JML_COMPUTE_METHOD
@@ -246,14 +255,14 @@ public:
         if (index->counts_) return index->counts_[n];
         else return 1;
     }
-    
+
     /** Returns true if this example only appeared one time. */
     JML_ALWAYS_INLINE JML_COMPUTE_METHOD
     bool one_example() const
     {
         return !index->counts_ || index->counts_[n] == 1;
     }
-    
+
     /** Reciprocal of example_counts() */
     JML_ALWAYS_INLINE JML_COMPUTE_METHOD
     double divisor() const
@@ -271,7 +280,7 @@ public:
 private:
     /** The Joint_Index we are looking at */
     const Joint_Index * index;
-    
+
     /** The number of th entry that we are up to. */
     unsigned n;
 };
@@ -282,4 +291,3 @@ private:
 #include "training_index_iterators_impl.h"
 
 #endif /* __boosting__training_index_iterator_h__ */
-

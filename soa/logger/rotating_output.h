@@ -28,7 +28,7 @@ struct RotatingOutput : public LogOutput {
     RotatingOutput();
 
     virtual ~RotatingOutput();
-    
+
     void open(const std::string & periodPattern);
 
     virtual void performRotation();
@@ -51,7 +51,7 @@ protected:
         sink.
     */
     virtual void openSubordinate(Date newDate) = 0;
-    
+
     /** Subclass must override this to atomically open a sink for the given
         date and replace the current sink so that any record() calls write
         to the new sink.  When the function returns the old sink must not
@@ -64,10 +64,10 @@ protected:
 
     /** Subclass must override to close the current sink. */
     virtual void closeSubordinate() = 0;
-    
+
 private:
     /// Thread to do the rotating
-    boost::scoped_ptr<boost::thread> rotateThread;
+    boost::shared_ptr<boost::thread> rotateThread;
 
     /// Flag to indicate that we need to shutdown
     volatile int shutdown_;
@@ -94,14 +94,14 @@ struct RotatingOutputAdaptor : public RotatingOutput {
 
     virtual ~RotatingOutputAdaptor();
 
-    
+
     /** Open the file for rotation. */
     void open(const std::string & filenamePattern,
               const std::string & periodPattern);
-    
+
     virtual void logMessage(const std::string & channel,
                             const std::string & message);
-    
+
     virtual Json::Value stats() const;
 
     virtual void clearStats();

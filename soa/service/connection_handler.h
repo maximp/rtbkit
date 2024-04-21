@@ -37,8 +37,8 @@ struct ConnectionHandler {
     {
         ML::atomic_add(destroyed, 1);
 
-        if (magic != 0x1234)
-            throw ML::Exception("Attempt to double free connection handler");
+//        if (magic != 0x1234)
+//            throw ML::Exception("Attempt to double free connection handler");
         magic = 0;
     }
 
@@ -140,7 +140,7 @@ struct ConnectionHandler {
     {
         transport().scheduleTimerRelative(secondsFromNow, cookie);
     }
-    
+
     /** Cancel the timer for this connection if it exists. */
     void cancelTimer()
     {
@@ -261,17 +261,17 @@ struct PassiveConnectionHandler: public ConnectionHandler {
     };
 
     std::list<WriteEntry> toWrite;
-    
+
     /** Send some data, with the given set of actions to be done once it's
         finished.
     */
     void send(const std::string & str,
               NextAction action = NEXT_CONTINUE,
               OnWriteFinished onWriteFinished = OnWriteFinished());
-    
+
     /** Function called out to when we got some data */
     virtual void handleData(const std::string & data) = 0;
-    
+
     /** Function called out to when we got an error from the socket. */
     virtual void handleError(const std::string & message) = 0;
 

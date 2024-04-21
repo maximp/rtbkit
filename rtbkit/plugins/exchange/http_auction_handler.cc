@@ -149,8 +149,8 @@ HttpAuctionHandler::
     //cerr << "deleting HttpAuctionHandler at " << this << endl;
     //backtrace();
     atomic_add(destroyed, 1);
-    if (hasTimer)
-        throw Exception("deleted auction handler with timer");
+//    if (hasTimer)
+//        throw Exception("deleted auction handler with timer");
 }
 
 void
@@ -380,7 +380,7 @@ handleHttpPayload(const HttpHeader & header,
                              "AsyncSendResponse");
             }
         };
-    
+
     // We always give ourselves 5ms to bid in, no matter what (let upstream
     // deal with it if it's really that much too slow).
     Date expiry = firstData.plusSeconds
@@ -453,7 +453,7 @@ handleHttpPayload(const HttpHeader & header,
     doEvent("auctionStart");
 
     addActivity("gotAuction %s", auction->id.toString().c_str());
-    
+
     if (now > expiry) {
         doEvent("auctionAlreadyExpired");
 
@@ -470,12 +470,12 @@ handleHttpPayload(const HttpHeader & header,
 
         return;
     }
-    
+
     addActivity("timeAvailable: %.1fms", timeAvailableMs);
-    
+
     scheduleTimerAbsolute(expiry, 1);
     hasTimer = true;
-    
+
     addActivity("gotTimer for %s",
                 expiry.print(4).c_str());
 
@@ -516,7 +516,7 @@ sendResponse()
 
     addActivity("sendResponse (lock took %.2fms)",
                 Date::now().secondsSince(before) * 1000);
-    
+
     cancelTimer();
 
     endpoint->onAuctionDone(auction);
@@ -528,9 +528,9 @@ sendResponse()
         closeWhenHandlerFinished();
         return;
     }
-    
+
     HttpResponse response = getResponse();
-    
+
     Date startTime = auction->start;
     Date beforeSend = Date::now();
 
@@ -564,7 +564,7 @@ sendResponse()
         };
 
     addActivityS("beforeSend");
-    
+
     double timeTaken = beforeSend.secondsSince(startTime) * 1000;
 
     response.extraHeaders

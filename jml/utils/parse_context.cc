@@ -17,7 +17,9 @@
 #include "jml/utils/file_functions.h"
 #include <cassert>
 #include <boost/scoped_array.hpp>
-
+#if BOOST_VERSION >= 106700
+#   include <boost/next_prior.hpp>
+#endif
 
 using namespace std;
 
@@ -137,7 +139,7 @@ struct MatchAnyChar {
         for (unsigned i = nd;  i < 4;  ++i)
             chars[i] = delimiters[0];
     }
-    
+
     char chars[4];
 
     bool operator () (char c) const
@@ -160,7 +162,7 @@ struct MatchAnyCharLots {
             bits[x >> 5] |= (1 << (x & 31));
         }
     }
-    
+
     uint32_t bits[8];
 
     bool operator () (unsigned char c) const
@@ -193,7 +195,7 @@ expect_text(char delimiter, bool allow_empty, const char * error)
         || (result.empty() && !allow_empty)) exception(error);
     return result;
 }
-    
+
 std::string
 Parse_Context::
 expect_text(const char * delimiters, bool allow_empty, const char * error)
@@ -216,7 +218,7 @@ match_int(int & val_, int min, int max)
     tok.ignore();
     return true;
 }
-    
+
 int
 Parse_Context::
 expect_int(int min, int max, const char * error)
@@ -282,7 +284,7 @@ match_long(long & val_, long min, long max)
     tok.ignore();
     return true;
 }
-    
+
 long
 Parse_Context::
 expect_long(long min, long max, const char * error)
@@ -328,7 +330,7 @@ match_long_long(long long & val_, long long min, long long max)
     tok.ignore();
     return true;
 }
-    
+
 long long
 Parse_Context::
 expect_long_long(long long min, long long max, const char * error)
@@ -471,10 +473,10 @@ next_buffer()
     }
     else {
         ++current_;
-        
+
         if (current_ == buffers_.end())
             current_ = read_new_buffer();
-        
+
         if (current_ != buffers_.end()) {
             cur_ = current_->pos;
             ebuf_ = cur_ + current_->size;
@@ -590,7 +592,7 @@ read_new_buffer()
 
     if (stream_->bad() || stream_->fail())
         exception("stream is bad/has failed 1");
-    
+
     static const size_t MAX_STACK_CHUNK_SIZE = 65536;
 
     //char tmpbuf_stack[chunk_size_];
@@ -602,7 +604,7 @@ read_new_buffer()
         tmpbuf_dynamic.reset(new char[chunk_size_]);
         tmpbuf = tmpbuf_dynamic.get();
     }
-    
+
     stream_->read(tmpbuf, chunk_size_);
     size_t read = stream_->gcount();
 
@@ -610,18 +612,18 @@ read_new_buffer()
 
     if (stream_->bad())
         exception("stream is bad/has failed 2");
-    
+
     if (read == 0) return buffers_.end();
 
     uint64_t last_ofs = (buffers_.empty() ? ofs_
                          : buffers_.back().ofs + buffers_.back().size);
-    
+
     //cerr << "last_ofs = " << last_ofs << endl;
 
     list<Buffer>::iterator result
         = buffers_.insert(buffers_.end(),
                           Buffer(last_ofs, new char[read], read, true));
-    
+
     //cerr << "  now " << buffers_.size() << " buffers active" << endl;
 
     memcpy(const_cast<char *>(buffers_.back().pos), tmpbuf, read);

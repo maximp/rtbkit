@@ -74,7 +74,7 @@ LoopMonitor::
 addMessageLoop(const string& name, const MessageLoop* loop)
 {
     // acts as a private member variable for sampleFn.
-    rusage lastSample;
+    rusage lastSample = {0};
     auto lastTime = Date();
 
     auto sampleFn = [=] (double elapsedTime) mutable {

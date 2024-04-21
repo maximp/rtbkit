@@ -8,6 +8,9 @@
 #include "buckets.h"
 #include <iostream>
 #include <boost/utility.hpp>
+#if BOOST_VERSION >= 106700
+#   include <boost/next_prior.hpp>
+#endif
 #include "jml/arch/format.h"
 #include "jml/utils/floating_point.h"
 #include "jml/utils/pair_utils.h"
@@ -22,10 +25,10 @@ void
 bucket_dist_full(vector<float> & result, const BucketFreqs & freqs)
 {
     bool debug = false;
-    
+
     result.clear();
     result.reserve(std::max<unsigned>(freqs.size() - 1, 0));
-    
+
     /* We want the split points, which are half way in between the
        current value and the next one. */
     for (int i = 0;  i < (int)freqs.size() - 1;  ++i)
@@ -43,7 +46,7 @@ bucket_dist_full(vector<float> & result, const BucketFreqs & freqs)
     }
 }
 
-void 
+void
 bucket_dist_reduced(vector<float> & result,
                     const BucketFreqs & freqs,
                     size_t num_buckets)
@@ -86,7 +89,7 @@ bucket_dist_reduced(vector<float> & result,
     if (num_buckets != num_big_buckets)
         per_bucket = (total - num_in_big_buckets) /
             (num_buckets - num_big_buckets);
-    
+
     if (debug) {
         cerr << "  per_bucket before = "
              << total / num_buckets << endl;
@@ -115,7 +118,7 @@ bucket_dist_reduced(vector<float> & result,
             float val = (v + boost::prior(it)->first) / 2.0;
             result.push_back(val);
             bucket_sizes.push_back(num - n);
-            if (debug) 
+            if (debug)
                 cerr << "i = " << i << ": split [1] at "
                      << format("val: %16.9f 0x%08x ", val,
                                reinterpret_as_int(val))
@@ -156,7 +159,7 @@ bucket_dist_reduced(vector<float> & result,
     for (unsigned i = 1;  i < result.size();  ++i)
         if (result[i] == result[i - 1])
             throw Exception("two buckets with the same split point");
-    
+
     if (debug) {
         for (unsigned i = 0;  i < result.size();  ++i)
             cerr << format("  bucket %5d has value %16.9f 0x%08x, %8.1f values",
@@ -184,14 +187,14 @@ void get_freqs(BucketFreqs & result, std::vector<float> values)
 
     vector<pair<float, float> > freqs2;
     freqs2.reserve(values.size());
-    
+
     float last = -INFINITY;
     int count = 0;
-            
+
     for (unsigned i = 0;  i < values.size();  ++i) {
         if (isnan(values[i]))
             throw Exception("NaN in values");
-            
+
         if (i == 0) {
             last = values[i];
             count += 1;
@@ -207,7 +210,7 @@ void get_freqs(BucketFreqs & result, std::vector<float> values)
     freqs2.push_back(make_pair(last, count));
 
     std::sort(freqs2.begin(), freqs2.end());
-    
+
     result = BucketFreqs(freqs2.begin(), freqs2.end());
 } // namespace ML
 
@@ -231,7 +234,7 @@ Bucket_Info create_buckets(const std::vector<float> & values,
     bucket_dist(result.splits, freqs, num_buckets);
 
     vector<int> bucket_count(result.splits.size() + 1);
-        
+
     for (unsigned i = 0;  i < values.size();  ++i) {
         float value = values[i];
         int bucket = std::upper_bound(result.splits.begin(),
@@ -247,4 +250,3 @@ Bucket_Info create_buckets(const std::vector<float> & values,
 }
 
 } // namespace ML
-

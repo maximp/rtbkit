@@ -12,9 +12,6 @@ namespace ML {
 
 __thread BacktraceInfo * current_backtrace = nullptr;
 
-
-namespace {
-
 void cleanup_current_backtrace(void * arg)
 {
     BacktraceInfo * p = (BacktraceInfo *)arg;
@@ -86,7 +83,5 @@ struct Install_Handler {
             exception_tracer = 0;
     }
 } install_handler;
-
-} // file scope
 
 } // namespace ML

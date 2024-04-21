@@ -28,7 +28,7 @@ void zk_callback(zhandle_t * ah, int type, int state, const char * path, void * 
     if(cb) {
 #if 0
         std::cerr << "zk_callback: Found user = " << user << " type:"
-            << ZookeeperConnection::printEvent(type) << " state:" 
+            << ZookeeperConnection::printEvent(type) << " state:"
             << ZookeeperConnection::printState(state)
             << " id = " << cbid << std::endl;
 #endif
@@ -45,10 +45,10 @@ ZookeeperCallbackManager &ZookeeperCallbackManager::instance()
 }
 
 uintptr_t
-ZookeeperCallbackManager::createCallback(ZookeeperCallbackType watch, 
+ZookeeperCallbackManager::createCallback(ZookeeperCallbackType watch,
                                          std::string const & path, void * data)
 {
-    if(!watch) 
+    if(!watch)
     {
         return 0;
     }
@@ -122,7 +122,7 @@ ZookeeperConnection()
       callbackMgr_(ZookeeperCallbackManager::instance())
 {
 }
-    
+
 std::string
 ZookeeperConnection::
 printEvent(int eventType)
@@ -157,7 +157,7 @@ printState(int state)
         return "CONNECTED";
     else if (state == ZOO_ASSOCIATING_STATE)
         return "ASSOCIATING";
-    else 
+    else
         return ML::format("UNKNOWN(%d)", state);
 }
 
@@ -195,13 +195,13 @@ connectImpl(const std::string & host,
         if (!handle)
             throw ML::Exception(errno, "failed to initialize ZooKeeper at " + host);
 
-        if (cv.wait_for(lk, std::chrono::milliseconds(timeout)) == 
+        if (cv.wait_for(lk, std::chrono::milliseconds(timeout)) ==
             std::cv_status::no_timeout) {
             return;
         }
         zookeeper_close(handle);
         handle = 0;
-        
+
         int ms = wait + (std::rand() % wait);
         wait *= 2;
         cerr << "ZookeeperConnection:connect: waiting " << ms/1000.0 << " seconds " << endl;
@@ -229,7 +229,7 @@ connectWithCredentials(const std::string &host,
 
     clientId.reset(new clientid_t);
     clientId->client_id = sessionId;
-    std::strncpy(clientId->passwd, password, 16);
+    std::memcpy(clientId->passwd, password, 16);
 
     connectImpl(host, timeoutInSeconds, clientId.get());
 }
@@ -326,7 +326,7 @@ createPath(const std::string & path)
 
         if (res == ZNODEEXISTS)
             return;
-        
+
         if (res == ZNONODE) {
             createPath(prefix);
             continue;
@@ -349,13 +349,13 @@ removePath(const std::string & path_)
             vector<string> children
                 = getChildren(currentPath,
                               false /* throwIfNodeMissing */);
-            
+
             for (auto child: children)
                 if (currentPath[currentPath.size() - 1] == '/')
                     doNode(currentPath + child);
                 else
                     doNode(currentPath + "/" + child);
-            
+
             deleteNode(currentPath, false /* throwIfNodeMissing */);
         };
 
@@ -395,7 +395,7 @@ createNode(const std::string & path,
 
         if (!mustSucceed && res == ZNODEEXISTS)
             return make_pair(path, false);
-        
+
         if (res == ZNONODE && createPath) {
             //cerr << "createPath for " << path << endl;
             this->createPath(path);
@@ -423,7 +423,7 @@ deleteNode(const std::string & path, bool throwIfNodeMissing)
 
         if (!throwIfNodeMissing && res == ZNONODE)
             return false;
-        
+
         if (checkRes(res, retries, "zoo_delete", path.c_str()) == CR_DONE)
             break;
     }
@@ -526,7 +526,7 @@ getChildren(const std::string & path_, bool failIfNodeMissing,
 {
     string path = fixPath(path_);
 
-//    cerr << pthread_self() << "::getChildren for " << path << ", " 
+//    cerr << pthread_self() << "::getChildren for " << path << ", "
 //         << path_ << " watcher data " << watcherData << endl;
 
     String_vector strings;

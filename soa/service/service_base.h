@@ -45,7 +45,7 @@ struct EventService {
     virtual ~EventService()
     {
     }
-    
+
     virtual void onEvent(const std::string & name,
                          const char * event,
                          StatEventType type,
@@ -69,7 +69,7 @@ struct NullEventService : public EventService {
 
     NullEventService();
     ~NullEventService();
-    
+
     virtual void onEvent(const std::string & name,
                          const char * event,
                          StatEventType type,
@@ -122,7 +122,7 @@ struct ConfigurationService {
         CREATED,         ///< Entry was created
         NEW_CHILD        ///< Entry has new children
     };
-    
+
     /** Callback that will be called if a given entry changes. */
     typedef std::function<void (std::string path,
                                 ChangeType changeType)> OnChange;
@@ -139,7 +139,7 @@ struct ConfigurationService {
             OnChange onChange;
             int watchReferences;  ///< How many watches reference this callback?
         };
-        
+
         Watch()
             : data(0)
         {
@@ -197,7 +197,7 @@ struct ConfigurationService {
         {
             if (!data)
                 throw ML::Exception("triggered unused watch");
-            if (!data->watchReferences <= 0)
+            if (data->watchReferences > 0)
                 return;
             ExcAssert(data);
             data->onChange(path, change);
@@ -250,7 +250,7 @@ struct ConfigurationService {
     /** Get the JSON value of a node in a synchronous manner. */
     virtual Json::Value
     getJson(const std::string & key, Watch watch = Watch()) = 0;
-    
+
     /** Callback called for each entry.  Return code is whether we should
         continue iterating or not.
     */
@@ -312,7 +312,7 @@ struct InternalConfigurationService : public ConfigurationService {
     */
     virtual Json::Value getJson(const std::string & value,
                                 Watch watch = Watch());
-    
+
     /** Set the value of a node. */
     virtual void set(const std::string & key,
                      const Json::Value & value);
@@ -353,7 +353,7 @@ private:
 
     /** Base entry for the entire service. */
     Entry root;
-    
+
     typedef std::recursive_mutex Lock;
     typedef std::unique_lock<Lock> Guard;
     mutable Lock lock;
@@ -407,9 +407,9 @@ struct ServiceProxies {
     /** Zeromq context for communication. */
     std::shared_ptr<zmq::context_t> zmqContext;
 
-    template<typename Configuration> 
+    template<typename Configuration>
     JML_ALWAYS_INLINE
-    std::shared_ptr<Configuration> configAs() 
+    std::shared_ptr<Configuration> configAs()
     {
         return std::static_pointer_cast<Configuration>(config);
     }
@@ -524,7 +524,7 @@ struct EventRecorder {
         return recordEventFmt(ET_COUNT, count, {}, event.c_str(),
                               ML::forwardForPrintf(args)...);
     }
-    
+
     template<typename... Args>
     JML_ALWAYS_INLINE
     void recordCount(float count, const char * event, Args... args) const
@@ -550,7 +550,7 @@ struct EventRecorder {
         return recordEventFmt(ET_OUTCOME, outcome, DefaultOutcomePercentiles, event.c_str(),
                              ML::forwardForPrintf(args)...);
     }
-    
+
     template<typename... Args>
     void recordOutcome(float outcome, const char * event, Args... args) const
     {
@@ -595,14 +595,14 @@ struct EventRecorder {
     {
         recordEvent(event.c_str(), ET_OUTCOME, outcome, percentiles);
     }
-    
+
     template<typename... Args>
     void recordLevel(float level, const std::string & event, Args... args) const
     {
         return recordEventmt(ET_LEVEL, level, {}, event.c_str(),
                              ML::forwardForPrintf(args)...);
     }
-    
+
     template<typename... Args>
     void recordLevel(float level, const char * event, Args... args) const
     {
@@ -691,7 +691,7 @@ struct ServiceBase: public EventRecorder {
         needing to find providers of any of the given services will be able
         to find this service.
     */
-    
+
     void registerServiceProvider(const std::string & name,
                                  const std::vector<std::string> & serviceClasses);
 
@@ -738,7 +738,7 @@ struct ServiceBase: public EventRecorder {
     /*************************************************************************/
     /* STATUS                                                                */
     /*************************************************************************/
-    
+
     /** Function to be called by something that wants to know the current
         status of this service.  Returns a JSON object that could be
         inspected by a human or consumed by a service.
@@ -771,4 +771,3 @@ struct SubServiceBase : public ServiceBase {
 
 
 #endif /* __service__service_base_h__ */
-   

@@ -125,7 +125,7 @@ private:
     std::unique_ptr<AvailabilityCheck> checker;
     RTBKIT::BiddingAgent proxy;
 
-    std::unique_ptr<std::thread>(qpsThread);
+    std::unique_ptr<std::thread> qpsThread;
 };
 
 

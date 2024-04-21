@@ -72,7 +72,7 @@
       "ConstraintDescription": "must be a valid IP CIDR range of the form x.x.x.x/x."
     }
   },
-  
+
   "Mappings": {
     "AWSInstanceType2Arch": {
       "m3.xlarge"   : { "Arch" : "HVM64"  },
@@ -110,7 +110,7 @@
       "us-east-1a"        : {"HVM64" : "ami-09771b077633f3592", "Note": "(N. Virginia)   Ubuntu Server 14.04 LTS (HVM), SSD Volume Type"},
     }
   },
-  
+
   "Resources": {
     "InstanceSecurityGroup": {
       "Type": "AWS::EC2::SecurityGroup",
@@ -437,10 +437,6 @@
                 "cwd": "/home/rtbkit",
                 "command": "su rtbkit -s /bin/bash -c 'git clone https://github.com/maximp/rtbkit.git'"
               },
-              "ez-rtbkit-branch": {
-                "cwd": "/home/rtbkit/rtbkit",
-                "command": "su rtbkit -s /bin/bash -c 'git checkout ubuntu14'"
-              },
               "fm-ulimit-set" : {
                   "command" : "ulimit -S 65536"
               },
@@ -504,7 +500,7 @@
                "Arch"
               ]
            }
-          ] 
+          ]
         },
         "InstanceType": {
           "Ref": "InstanceType"
@@ -563,7 +559,7 @@
       "Type" : "AWS::CloudFormation::WaitConditionHandle"
     }
   },
-  
+
   "Outputs": {
     "RTBKitCoreServerPublicIP" : {
       "Description" : "RTBKit Core Server IP",
